@@ -1,0 +1,356 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Waypoint Design Dialogue</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=Source+Sans+3:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+body{margin:0}[hidden]{display:none!important}img{max-width:100%}
+/* Layout: a briefing column (one question at a time, evidence-first) beside a growing system codex that the answers write. */
+:root{
+  --bg:#F6F6F3; --surface:#FFFFFF; --ink:#1B1C22; --ink-2:#565866; --ink-3:#8B8D99; --rule:#E2E2DD;
+  --you:#3C3FB8; --you-bg:#ECECFA; --sus:#B06B00; --sus-bg:#FBF0DC; --obs:#5E6472; --board:#EDEDE8;
+  --f-display:'Bricolage Grotesque',system-ui,sans-serif; --f-body:'Source Sans 3',system-ui,sans-serif; --f-mono:'JetBrains Mono',ui-monospace,monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#141519; --surface:#1C1D23; --ink:#ECECF0; --ink-2:#A9ABB8; --ink-3:#757786; --rule:#2D2E36;
+  --you:#9EA1FF; --you-bg:#25264A; --sus:#E8A845; --sus-bg:#3A2C12; --obs:#A2A7B4; --board:#23242B; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#141519; --surface:#1C1D23; --ink:#ECECF0; --ink-2:#A9ABB8; --ink-3:#757786; --rule:#2D2E36;
+  --you:#9EA1FF; --you-bg:#25264A; --sus:#E8A845; --sus-bg:#3A2C12; --obs:#A2A7B4; --board:#23242B; color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font:400 16px/1.5 var(--f-body)}
+button,input{font:inherit;color:inherit}
+button{cursor:pointer}
+:focus-visible{outline:2px solid var(--you);outline-offset:2px}
+.wrap{max-width:1280px;margin:0 auto;padding-block:20px 60px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));display:grid;grid-template-columns:minmax(0,1.35fr) minmax(0,1fr);gap:28px}
+@media (max-width:900px){.wrap{grid-template-columns:minmax(0,1fr)}}
+header.top{grid-column:1/-1;display:flex;justify-content:space-between;align-items:end;gap:16px;flex-wrap:wrap;border-bottom:1px solid var(--rule);padding-bottom:16px}
+.brand{font:700 15px var(--f-display);letter-spacing:-.01em}
+.brand span{color:var(--ink-3);font-weight:500}
+.state{display:flex;gap:18px;flex-wrap:wrap;font-size:14px;color:var(--ink-2)}
+.state b{font:700 22px/1 var(--f-display);color:var(--ink);margin-right:5px;font-variant-numeric:tabular-nums}
+.mark{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:6px;vertical-align:1px}
+.m-you{background:var(--you)}.m-sus{border:1.5px dashed var(--sus)}.m-obs{border:1.5px solid var(--obs)}
+
+/* briefing */
+.brief{display:grid;gap:18px;align-content:start;min-width:0}
+.session{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.session .lbl{font:500 12px var(--f-mono);letter-spacing:.06em;text-transform:uppercase;color:var(--ink-3)}
+.steps{display:flex;gap:6px}
+.steps i{width:28px;height:5px;border-radius:3px;background:var(--rule)}
+.steps i.done{background:var(--you)}.steps i.now{background:var(--ink)}.steps i.parked{background:var(--sus)}
+.thread{display:grid;gap:6px}
+.said{display:flex;gap:10px;align-items:baseline;font-size:14px;color:var(--ink-2);flex-wrap:wrap}
+.said .who{font:500 11px var(--f-mono);text-transform:uppercase;letter-spacing:.06em;color:var(--you);flex:none}
+.said button{background:none;border:0;padding:0;text-decoration:underline;text-underline-offset:3px;color:var(--ink-2);font-size:13px}
+.card{background:var(--surface);border:1px solid var(--rule);border-radius:14px;padding:26px;display:grid;gap:20px;animation:rise .45s ease both}
+@keyframes rise{from{opacity:.4;transform:translateY(8px)}}
+@media (prefers-reduced-motion: reduce){.card,.tile.new{animation:none}}
+.why{font:500 12px var(--f-mono);color:var(--sus);letter-spacing:.04em;text-transform:uppercase;display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.why span{color:var(--ink-3)}
+h1.q{margin:0;font:700 clamp(24px,3.2vw,34px)/1.12 var(--f-display);letter-spacing:-.02em;text-wrap:balance;max-width:22ch}
+.board{background:var(--board);border-radius:10px;padding:22px;display:grid;gap:14px;position:relative}
+.ev{display:flex;gap:16px;flex-wrap:wrap;align-items:stretch;justify-content:center}
+.evi{background:var(--surface);border-radius:8px;padding:14px;display:grid;gap:10px;justify-items:center;align-content:space-between;flex:1 1 150px;max-width:240px;border:2px solid transparent;transition:border-color .2s,opacity .2s}
+.evi small{font:400 12px var(--f-mono);color:var(--ink-2);text-align:center}
+.evi .d{font:500 11.5px var(--f-mono);color:var(--sus)}
+.evi.pick{cursor:pointer}.evi.pick:hover{border-color:var(--ink-3)}
+.evi.out{opacity:.45;border-color:var(--sus);border-style:dashed}
+.prod{all:unset;font:600 14px/1 'Source Sans 3',system-ui,sans-serif;color:#fff;padding:0 18px;display:inline-flex;align-items:center}
+.mini{width:100%;max-width:200px;border:1px solid #DADDE2;border-radius:8px;background:#fff;padding:10px;display:grid;gap:6px}
+.mini .ln{height:6px;border-radius:3px;background:#E6E9ED}
+.mini .ph{height:46px;border-radius:5px;background:linear-gradient(135deg,#A9CBD9,#DCE8D4)}
+.mini .f{height:20px;border:1px solid #CFD6DC;border-radius:4px}
+.mini .eb{height:22px;border-radius:5px;font:600 10px/22px system-ui,sans-serif;color:#fff;text-align:center;margin-top:4px}
+.linker{font:500 12px var(--f-mono);color:var(--ink-2);text-align:center}
+.overlay{position:relative;height:92px;display:grid;place-items:center}
+.overlay > div{position:absolute;display:grid;place-items:center}
+.boardtools{display:flex;gap:8px;justify-content:center;flex-wrap:wrap}
+.tool{background:var(--surface);border:1px solid var(--rule);border-radius:999px;padding:5px 12px;font-size:13px}
+.tool[aria-pressed="true"]{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.facts{display:grid;gap:8px;font-size:15px}
+.fact{display:grid;grid-template-columns:96px 1fr;gap:12px;align-items:baseline}
+.fact .k{font:500 11px var(--f-mono);text-transform:uppercase;letter-spacing:.06em}
+.k.obs{color:var(--obs)}.k.sus{color:var(--sus)}.k.you{color:var(--you)}
+.stake{font-size:15.5px;border-left:3px solid var(--sus);padding:2px 0 2px 14px;max-width:62ch}
+.answers{display:flex;gap:10px;flex-wrap:wrap}
+.ans{border:1.5px solid var(--ink);background:var(--surface);border-radius:10px;padding:12px 16px;text-align:left;display:grid;gap:2px;flex:1 1 180px}
+.ans b{font:600 16px var(--f-body)}
+.ans span{font-size:13.5px;color:var(--ink-2);line-height:1.35}
+.ans:hover{background:var(--ink);color:var(--bg)}.ans:hover span{color:var(--bg);opacity:.8}
+.ans.prev{border-color:var(--you);background:var(--you-bg)}
+.side{display:flex;gap:14px;flex-wrap:wrap;font-size:14px;border-top:1px solid var(--rule);padding-top:14px}
+.side button{background:none;border:0;padding:0;color:var(--ink-2);text-decoration:underline;text-underline-offset:3px}
+.side button:hover{color:var(--ink)}
+.challenge{display:grid;gap:10px;background:var(--board);border-radius:10px;padding:16px}
+.chips{display:flex;gap:8px;flex-wrap:wrap}
+.chip{background:var(--surface);border:1px solid var(--rule);border-radius:999px;padding:6px 12px;font-size:14px;text-align:left}
+.chip:hover{border-color:var(--ink)}
+.challenge form{display:flex;gap:8px}
+.challenge input{flex:1;min-width:0;border:1px solid var(--rule);border-radius:8px;padding:8px 12px;background:var(--surface)}
+.reply{background:var(--you-bg);border-radius:12px;padding:18px 20px;display:grid;gap:10px;animation:rise .4s ease both}
+.reply .who{font:500 11px var(--f-mono);text-transform:uppercase;letter-spacing:.06em;color:var(--you)}
+.reply p{margin:0;font-size:15.5px;max-width:62ch}
+.reply ul{margin:0;padding-left:18px;font-size:15px}
+.reply .rem{font-size:14px;color:var(--ink-2)}
+.row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.btn{background:var(--ink);color:var(--bg);border:0;border-radius:8px;padding:10px 16px;font-weight:600}
+.btn.alt{background:none;color:var(--ink);border:1px solid var(--rule)}
+.pickhint{font:500 12.5px var(--f-mono);color:var(--sus);text-align:center}
+
+/* codex */
+.codex{position:sticky;top:calc(16px + env(safe-area-inset-top,0px));align-self:start;background:var(--surface);border:1px solid var(--rule);border-radius:14px;padding:20px;display:grid;gap:18px;max-height:calc(100vh - 32px);overflow:auto;min-width:0}
+@media (max-width:900px){.codex{position:static;max-height:none}}
+.codex h2{margin:0;font:700 19px var(--f-display);letter-spacing:-.01em}
+.codex .sub{font-size:13.5px;color:var(--ink-2);margin-top:2px}
+.group{display:grid;gap:8px}
+.ghead{display:flex;justify-content:space-between;font:500 11.5px var(--f-mono);text-transform:uppercase;letter-spacing:.06em;color:var(--ink-3);border-bottom:1px solid var(--rule);padding-bottom:6px}
+.tiles{display:grid;grid-template-columns:repeat(auto-fill,minmax(118px,1fr));gap:8px}
+.tile{border:1px solid var(--rule);border-radius:9px;padding:10px;display:grid;gap:6px;background:var(--surface);text-align:left;position:relative;min-height:92px;align-content:start}
+.tile:hover{border-color:var(--ink-3)}
+.tile .sp{height:26px;display:flex;align-items:center}
+.tile b{font-size:13.5px;font-weight:600;line-height:1.2}
+.tile small{font:400 11px var(--f-mono);color:var(--ink-2)}
+.tile .pv{position:absolute;top:9px;right:9px;width:9px;height:9px;border-radius:50%}
+.tile.you .pv{background:var(--you)}.tile.sus{border-style:dashed;border-color:var(--sus)}.tile.sus .pv{border:1.5px dashed var(--sus)}.tile.obs .pv{border:1.5px solid var(--obs)}
+.tile.parked{background:var(--sus-bg);border-color:transparent}
+.tile.new{animation:glow 1.6s ease}
+@keyframes glow{0%{box-shadow:0 0 0 0 var(--you);transform:scale(.96)}40%{box-shadow:0 0 0 4px var(--you-bg);transform:scale(1)}}
+.ctxs{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.ctx{border-radius:9px;padding:10px;background:var(--board);display:grid;gap:6px}
+.ctx b{font-size:13px}
+.ctx .bridge{font:500 11px var(--f-mono);color:var(--you)}
+.sw{width:22px;height:22px;border-radius:5px;display:inline-block;margin-right:3px}
+.pop{background:var(--board);border-radius:9px;padding:12px;font-size:14px;display:grid;gap:8px}
+.legend{display:flex;gap:14px;flex-wrap:wrap;font-size:12.5px;color:var(--ink-2)}
+.done{display:grid;gap:14px}
+.done h1{margin:0;font:700 30px/1.1 var(--f-display);letter-spacing:-.02em}
+.sumgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:10px}
+.sumgrid div{background:var(--board);border-radius:10px;padding:14px;display:grid;gap:4px}
+.sumgrid b{font:700 26px var(--f-display)}
+.sumgrid span{font-size:13.5px;color:var(--ink-2)}
+</style>
+
+<div class="wrap">
+  <header class="top">
+    <div class="brand">Waypoint <span>· design dialogue</span></div>
+    <div class="state" id="state" aria-live="polite"></div>
+  </header>
+
+  <main class="brief" id="brief"></main>
+
+  <aside class="codex" aria-label="The system so far">
+    <div><h2>The system so far</h2><div class="sub">Written by your answers. Tap anything to see why it's there or to reopen it.</div></div>
+    <div class="legend"><span><i class="mark m-you"></i>You decided</span><span><i class="mark m-sus"></i>System suspects</span><span><i class="mark m-obs"></i>Observed only</span></div>
+    <div id="codex" style="display:grid;gap:18px"></div>
+  </aside>
+</div>
+
+<script>
+const BLUE='#2563EB',BLUE2='#2460E0',GREEN='#15803D',RED='#DC2626',KESTREL='#0F766E';
+const btn=(c,t,r=6,h=40)=>`<span class="prod" style="background:${c};border-radius:${r}px;height:${h}px">${t}</span>`;
+
+// ------------ questions ------------
+const Q={
+ red:{why:'Asked first because',whyS:'one future change could quietly break 61 promotions',
+  q:'Your error red and your Deal red are the same value. Are they the same thing?',
+  board:()=>`<div class="ev">
+    <div class="evi"><div class="mini"><div class="ln" style="width:50%"></div><div class="f"></div><div class="f" style="border-color:${RED}"></div><div style="font:500 10px system-ui;color:${RED}">Enter a valid passport number</div></div><small>Passenger form · 148 errors</small></div>
+    <div class="evi" style="flex:0 1 110px;justify-content:center;align-content:center"><span class="sw" style="background:${RED};width:44px;height:44px;border-radius:50%"></span><div class="linker">#DC2626<br>identical</div></div>
+    <div class="evi"><div class="mini"><div class="ph"></div><span style="justify-self:start;background:${RED};color:#fff;font:700 10px system-ui;padding:3px 6px;border-radius:3px">DEAL −30%</span><div class="ln" style="width:70%"></div></div><small>Search results · 61 badges</small></div></div>`,
+  facts:[['obs','Observed','One value, used in two places.'],['sus','Suspected','Grouped as one colour only because the value matches.']],
+  stake:'If they stay one thing, fixing error contrast later would also recolour every Deal badge.',
+  ans:[{k:'two',b:'Two meanings',s:'Same colour today, separate roles'},{k:'one',b:'Same thing',s:'Change one, change both'}],
+  chal:[['Deals should be orange anyway','Then they are two meanings, and Promotion needs a new colour. I\'ll split them and put “Promotion colour” on your notes as a follow-up.','two'],['Why does this matter now?','Accessibility review flagged error contrast on dark backgrounds. Whoever fixes that will reach for this colour first.',null]]},
+ buttons:{why:'Biggest single gain',whyS:'settles 991 buttons on 143 screens',
+  q:'Are these three blue buttons doing the same job?',
+  board:(st)=>st.overlay?`<div class="overlay" aria-label="Buttons overlaid">
+      <div style="opacity:.55">${btn(BLUE,'&nbsp;',6,40).replace('padding:0 18px','padding:0 70px')}</div>
+      <div style="opacity:.55">${btn(BLUE2,'&nbsp;',4,40).replace('padding:0 18px','padding:0 70px')}</div>
+      <div style="outline:1.5px dashed ${'#B06B00'};outline-offset:2px;opacity:.55">${btn(BLUE,'&nbsp;',6,48).replace('padding:0 18px','padding:0 70px')}</div></div>
+      <div class="linker">Overlaid: corners differ in Checkout, Search is 8px taller. Colour difference is not visible to the eye.</div>`
+    :`<div class="ev">${[['a','Continue',BLUE,6,40,'Trip & account · 612',''],['b','Pay £412',BLUE2,4,40,'Checkout · 238','sharper corners'],['c','Search',BLUE,6,48,'Search bar · 141','taller']].map(([id,t,c,r,h,cap,d])=>`<div class="evi ${st.except?'pick':''} ${st.out&&st.out.includes(id)?'out':''}" data-id="${id}" ${st.except?'role="button" tabindex="0"':''}>${btn(c,t,r,h)}<small>${cap}</small>${d?`<span class="d">${d}</span>`:'<span class="d">&nbsp;</span>'}</div>`).join('')}</div>
+      ${st.except?'<div class="pickhint">Tap the ones that don’t belong, then confirm</div>':''}`,
+  tools:true,
+  facts:[['obs','Observed','All three end a task and sit at the bottom of their screen.'],['sus','Suspected','One role with drift. A guess from code patterns, not proof.']],
+  stake:'This is the most used action in Waypoint. Naming it gives four compositions a shared spine.',
+  ans:[{k:'one',b:'Same job',s:'One role, differences go to tidy-up'},{k:'except',b:'Same, except…',s:'Pick which don\'t belong'},{k:'diff',b:'Different jobs',s:'Keep three roles'}],
+  chal:[['Search should be bigger on purpose','Then Search is a deliberate size variant of the same job. I\'ll record “large” as a variant rather than drift.','variant'],['These are owned by different teams','Ownership doesn\'t change meaning, but I\'ll note owners so tidy-ups go to the right people.',null]]},
+ business:{why:'Follows from your last answer',whyS:'203 Business buttons look identical to Primary action',
+  q:'Business portal buttons look exactly like Primary action. Should they always?',
+  board:(st)=>`<div class="ev">
+    <div class="evi"><div class="mini"><div class="ph"></div><div class="ln" style="width:60%"></div><div class="eb" style="background:${BLUE}">Continue</div></div><small>Waypoint app</small></div>
+    <div class="evi"><div class="mini"><div class="ln" style="background:#334155"></div><div class="ln" style="width:80%"></div><div class="ln" style="width:65%"></div><div class="eb" style="background:${st.partner?KESTREL:BLUE}">Approve £2,140</div></div><small>${st.partner?'Business · as Kestrel Travel':'Business · default theme'}</small></div></div>
+    <div class="boardtools"><button class="tool" id="ptog" aria-pressed="${!!st.partner}">Preview with a partner's brand</button></div>`,
+  facts:[['obs','Observed','Identical today. Partners can set a brand colour, and none has yet.'],['you','From you','Primary action is one job across the consumer app.']],
+  stake:'Looking the same now isn\'t the same as being the same thing. The first partner rebrand will decide this for you if you don\'t.',
+  ans:[{k:'themed',b:'Same job, partner\'s colour',s:'Shared behaviour, themed look'},{k:'locked',b:'Always identical',s:'Partners can\'t recolour it'},{k:'own',b:'Its own job',s:'Approving spend is different'}],
+  chal:[['Partners shouldn\'t touch buttons','Then lock it. Partners will still theme headers and logos. Note: two partner contracts mention “brand colours on actions”.','locked']]},
+ booknow:{why:'You asked to look at this',whyS:'small, but easy to break by accident',
+  q:'“Book now” is green and larger than every other action. Drift, or deliberate?',
+  board:()=>`<div class="ev"><div class="evi">${btn(GREEN,'Book now',10,48)}<small>Checkout review · 9</small><span class="d">green, taller, rounder</span></div><div class="evi">${btn(BLUE2,'Pay £412',4,40)}<small>Primary action in Checkout</small><span class="d">&nbsp;</span></div></div>
+    <div class="linker">Source note, May 2023: “exp checkout-cta-green — won, keep”</div>`,
+  facts:[['obs','Observed','9 buttons, one screen, added with an experiment.'],['sus','Suspected','Probably deliberate. The note suggests it won a test.']],
+  stake:'A future tidy-up would turn this blue unless someone marks it as on purpose.',
+  ans:[{k:'exception',b:'Deliberate exception',s:'Protect it from tidy-ups'},{k:'drift',b:'Drift',s:'Should be Primary action'}],
+  chal:[['The experiment was rolled back','Then it\'s drift that survived. I\'ll mark it as drift and link the experiment so the fix has context.','drift']]},
+};
+const REPLY={
+ red:{two:['Split into two roles that happen to share a colour today.',['Danger: 148 error messages','Promotion: 61 Deal badges'],'Neither changes visually. You can now change one without the other.'],
+      one:['Kept as one role.',['209 uses stay together'],'I\'ll warn anyone who edits it that Deal badges will change too.']},
+ buttons:{one:['Named this role “Primary action”.',['991 buttons on 143 screens','Corner and height differences sent to tidy-up, not auto-fixed'],'This raised a new question about the Business portal. It\'s next.'],
+      except:['Named “Primary action”, with your exclusions kept apart.',[],'Excluded buttons stay as their own suspected role. This raised a question about the Business portal. It\'s next.'],
+      variant:['Named “Primary action” with a “large” size for Search.',['991 buttons, 141 of them the large size'],'Business portal question is next.'],
+      diff:['Kept as three roles.',['Trip, Checkout and Search actions can change separately'],'Business portal question skipped, since there\'s no shared role to follow.']},
+ business:{themed:['Business uses Primary action, coloured by the partner theme.',['203 buttons linked to Primary action','Colour comes from the partner\'s brand'],'Two systems now coexist on purpose. They share behaviour, not paint.'],
+      locked:['Locked Business to the consumer look.',['Partners can no longer recolour actions'],'Two partner contracts mention brand colours on actions. Flagged.'],
+      own:['Made “Approve” its own role in Business.',['203 buttons'],'It looks the same today but can now change on its own.']},
+ booknow:{exception:['Marked “Book now” as a deliberate exception.',['9 buttons protected from tidy-ups'],'Reason recorded: checkout experiment, May 2023.'],
+      drift:['Marked as drift.',['9 buttons added to the tidy-up list'],'Nothing changes in code until someone takes it.']},
+};
+
+// ------------ state ------------
+const S={queue:['red','buttons','business'],i:0,ans:{},board:{},chal:false,reply:null,parked:[],notes:[],newTiles:[],redirect:false,popup:null};
+
+function stats(){
+  let you=9,sus=6;
+  if(S.ans.red==='two'){you+=2;sus--} else if(S.ans.red==='one'){you++;sus--}
+  if(S.ans.buttons){you+=S.ans.buttons==='diff'?3:1;sus--}
+  if(S.ans.business){you++;}
+  if(S.ans.booknow){you++;sus--}
+  return {you,sus,left:S.queue.filter(q=>!S.ans[q]&&!S.parked.includes(q)).length};
+}
+function renderState(){
+  const s=stats();
+  document.getElementById('state').innerHTML=`<span><b>${s.you}</b>roles you've decided</span><span><b>${s.sus}</b>still suspected</span><span><b>${s.left}</b>question${s.left===1?'':'s'} would settle most of the rest</span>`;
+}
+
+// ------------ briefing ------------
+const B=document.getElementById('brief');
+function cur(){return S.queue[S.i]}
+function renderBrief(){
+  const steps=S.queue.map((q,i)=>`<i class="${S.ans[q]?'done':S.parked.includes(q)?'parked':i===S.i?'now':''}"></i>`).join('');
+  const thread=S.queue.filter(q=>S.ans[q]||S.parked.includes(q)).map(q=>{
+    const a=S.ans[q];const label=a?(Q[q].ans.find(x=>x.k===a)||{b:a==='variant'?'Same job, Search is a large size':a}).b:'Parked for later';
+    return `<div class="said"><span class="who">You</span><span>${Q[q].q.replace(/<[^>]+>/g,'').slice(0,64)}… <b style="color:var(--ink)">${label}</b></span><button data-reopen="${q}">${a?'Change':'Answer now'}</button>${a?`<button data-undo="${q}">Undo</button>`:''}</div>`}).join('');
+  let main='';
+  if(S.reply){main=replyHTML()}
+  else if(S.i>=S.queue.length){main=doneHTML()}
+  else main=questionHTML(cur());
+  B.innerHTML=`<div class="session"><span class="lbl">Today's briefing · ${S.queue.length} questions · about 4 minutes</span><span class="steps">${steps}</span></div>
+    ${thread?`<div class="thread">${thread}</div>`:''}${main}`;
+  wire();
+}
+function questionHTML(id){
+  const q=Q[id],st=S.board[id]||(S.board[id]={}),prev=S.ans[id];
+  return `<article class="card" aria-live="polite">
+    <div class="why">${q.why} <span>· ${q.whyS}</span></div>
+    <h1 class="q">${q.q}</h1>
+    <div class="board">${q.board(st)}${q.tools?`<div class="boardtools"><button class="tool" id="ov" aria-pressed="${!!st.overlay}">Overlay them</button><button class="tool" id="ctx">See them in screens</button></div>`:''}</div>
+    <div class="facts">${q.facts.map(([c,k,v])=>`<div class="fact"><span class="k ${c}">${k}</span><span>${v}</span></div>`).join('')}</div>
+    <div class="stake">${q.stake}</div>
+    ${st.except?`<div class="row"><button class="btn" id="exok" ${st.out&&st.out.length?'':'disabled'}>Confirm: ${st.out?st.out.length:0} don't belong</button><button class="btn alt" id="excancel">Cancel</button></div>`
+      :`<div class="answers">${q.ans.map(a=>`<button class="ans ${prev===a.k?'prev':''}" data-a="${a.k}"><b>${a.b}</b><span>${a.s}</span></button>`).join('')}</div>`}
+    ${S.chal?`<div class="challenge"><div class="k sus" style="font:500 11px var(--f-mono);text-transform:uppercase;letter-spacing:.06em">Push back or add context</div><div class="chips">${q.chal.map((c,i)=>`<button class="chip" data-c="${i}">${c[0]}</button>`).join('')}</div><form id="cf"><input id="ci" placeholder="Or say it your way…" aria-label="Your context"><button class="btn alt">Add</button></form></div>`:''}
+    ${S.redirect?`<div class="challenge"><div class="k sus" style="font:500 11px var(--f-mono);text-transform:uppercase;letter-spacing:.06em">What would you rather look at?</div><div class="chips"><button class="chip" data-r="booknow">The odd green button in checkout</button><button class="chip" data-r="none">Date pickers (3 versions)</button><button class="chip" data-r="none">Spacing on cards</button></div></div>`:''}
+    <div class="side"><button id="chal">${S.chal?'Hide':'That\'s not quite it…'}</button><button id="park">Not sure, park it</button><button id="redir">Ask me about something else</button></div>
+  </article>`;
+}
+function replyHTML(){
+  const [id,k,extra]=S.reply,r=REPLY[id][k];
+  let list=r[1].slice();
+  if(id==='buttons'&&k==='except'){const out=S.board.buttons.out||[];const names={a:'Trip & account (612)',b:'Checkout (238)',c:'Search bar (141)'};list=['Primary action: '+['a','b','c'].filter(x=>!out.includes(x)).map(x=>names[x]).join(', '),'Kept apart: '+out.map(x=>names[x]).join(', ')]}
+  return `<div class="reply" aria-live="polite"><span class="who">Waypoint system</span><p>${extra?extra+' ':''}${r[0]}</p>${list.length?`<ul>${list.map(l=>`<li>${l}</li>`).join('')}</ul>`:''}<p class="rem">${r[2]}</p>
+    <div class="row"><button class="btn" id="next">${S.i+1<S.queue.length||nextQueued()?'Next question':'Finish briefing'}</button><button class="btn alt" id="undoR">Undo</button><button class="btn alt" id="showC">Show me in the system</button></div></div>`;
+}
+function nextQueued(){return false}
+function doneHTML(){
+  const s=stats();const open=S.parked.length;
+  return `<article class="card done"><div class="why">Briefing complete <span>· come back when something changes</span></div><h1>The system is clearer than it was 4 minutes ago.</h1>
+    <div class="sumgrid"><div><b>${Object.keys(S.ans).length}</b><span>decisions you made today</span></div><div><b>${s.you}</b><span>roles now have meaning you confirmed</span></div><div><b>${s.sus+open}</b><span>things still uncertain${open?`, ${open} parked by you`:''}</span></div></div>
+    <p class="stake" style="border-color:var(--you)">Nothing here was promoted without you. Everything in “The system so far” can be reopened, and undoing an answer also unwinds anything that followed from it.</p>
+    <div class="row"><button class="btn" id="more">Ask me 2 more</button>${open?'<button class="btn alt" id="parkedgo">Return to parked</button>':''}</div></article>`;
+}
+
+function wire(){
+  B.querySelectorAll('[data-a]').forEach(b=>b.onclick=()=>answer(cur(),b.dataset.a));
+  B.querySelectorAll('[data-reopen]').forEach(b=>b.onclick=()=>reopen(b.dataset.reopen));
+  B.querySelectorAll('[data-undo]').forEach(b=>b.onclick=()=>undo(b.dataset.undo));
+  const $=id=>document.getElementById(id);
+  if($('ov'))$('ov').onclick=()=>{S.board.buttons.overlay=!S.board.buttons.overlay;renderBrief()};
+  if($('ctx'))$('ctx').onclick=()=>{S.popup='ctx';renderCodex();document.querySelector('.codex').scrollIntoView({behavior:'smooth',block:'nearest'})};
+  if($('ptog'))$('ptog').onclick=()=>{S.board.business.partner=!S.board.business.partner;renderBrief()};
+  if($('chal'))$('chal').onclick=()=>{S.chal=!S.chal;S.redirect=false;renderBrief()};
+  if($('redir'))$('redir').onclick=()=>{S.redirect=!S.redirect;S.chal=false;renderBrief()};
+  if($('park'))$('park').onclick=()=>{const id=cur();if(!S.parked.includes(id))S.parked.push(id);S.chal=S.redirect=false;advance()};
+  B.querySelectorAll('[data-c]').forEach(b=>b.onclick=()=>{const c=Q[cur()].chal[+b.dataset.c];if(c[2])answer(cur(),c[2],'Understood. '+c[1]);else{S.notes.push(c[0]);S.reply=null;flash(c[1])}});
+  B.querySelectorAll('[data-r]').forEach(b=>b.onclick=()=>{if(b.dataset.r==='none'){flash('Noted. I\'ll bring that next time; it has less impact than what\'s here today.');return}
+    const id=cur();if(!S.queue.includes('booknow'))S.queue.splice(S.i,0,'booknow');S.redirect=false;renderAll()});
+  if($('cf'))$('cf').onsubmit=e=>{e.preventDefault();const v=$('ci').value.trim();if(!v)return;S.notes.push(v);flash('Added to this question as context. It doesn\'t answer it, so I\'ll keep the question open until you choose.')};
+  B.querySelectorAll('.evi.pick').forEach(e=>{const t=()=>{const st=S.board.buttons;st.out=st.out||[];const id=e.dataset.id;st.out=st.out.includes(id)?st.out.filter(x=>x!==id):[...st.out,id];if(st.out.length>2)st.out=st.out.slice(1);renderBrief()};e.onclick=t;e.onkeydown=ev=>{if(ev.key==='Enter')t()}});
+  if($('exok'))$('exok').onclick=()=>{S.board.buttons.except=false;answer('buttons','except')};
+  if($('excancel'))$('excancel').onclick=()=>{S.board.buttons.except=false;S.board.buttons.out=[];renderBrief()};
+  if($('next'))$('next').onclick=()=>{S.reply=null;advance()};
+  if($('undoR'))$('undoR').onclick=()=>{const id=S.reply[0];S.reply=null;undo(id,true)};
+  if($('showC'))$('showC').onclick=()=>document.querySelector('.codex').scrollIntoView({behavior:'smooth'});
+  if($('more'))$('more').onclick=()=>{if(!S.queue.includes('booknow'))S.queue.push('booknow');S.i=S.queue.findIndex(q=>!S.ans[q]&&!S.parked.includes(q));if(S.i<0)S.i=S.queue.length;renderAll()};
+  if($('parkedgo'))$('parkedgo').onclick=()=>reopen(S.parked[0]);
+}
+function flash(msg){const c=B.querySelector('.challenge');if(!c)return;let r=c.querySelector('.fl');if(!r){r=document.createElement('div');r.className='reply fl';c.appendChild(r)}r.innerHTML=`<span class="who">Waypoint system</span><p>${msg}</p>`}
+function answer(id,k,extra){
+  if(k==='except'&&!(S.board.buttons.out&&S.board.buttons.out.length)){S.board.buttons.except=true;S.board.buttons.overlay=false;renderBrief();return}
+  S.ans[id]=k;S.parked=S.parked.filter(x=>x!==id);S.chal=S.redirect=false;S.reply=[id,k,extra];
+  if(id==='buttons'&&k==='diff'){S.queue=S.queue.filter(q=>q!=='business')}
+  else if(id==='buttons'&&!S.queue.includes('business')) S.queue.splice(S.queue.indexOf('buttons')+1,0,'business');
+  S.newTiles=tilesFor(id);renderAll();
+}
+function advance(){const n=S.queue.findIndex((q,i)=>!S.ans[q]&&!S.parked.includes(q));S.i=n<0?S.queue.length:n;S.reply=null;renderAll();window.scrollTo({top:0,behavior:'smooth'})}
+function reopen(id){S.parked=S.parked.filter(x=>x!==id);S.i=S.queue.indexOf(id);S.reply=null;S.chal=S.redirect=false;renderAll();window.scrollTo({top:0,behavior:'smooth'})}
+function undo(id,stay){
+  const deps=id==='buttons'&&S.ans.business?['business']:[];
+  delete S.ans[id];deps.forEach(d=>delete S.ans[d]);
+  if(id==='buttons'&&!S.queue.includes('business'))S.queue.splice(S.queue.indexOf('buttons')+1,0,'business');
+  if(id==='buttons'&&S.board.buttons)S.board.buttons.out=[];
+  S.i=S.queue.indexOf(id);S.reply=null;S.newTiles=[];renderAll();
+  const c=B.querySelector('.card');if(c&&deps.length){const n=document.createElement('div');n.className='reply';n.innerHTML='<span class="who">Waypoint system</span><p>Undone. Your Business portal answer depended on this, so it\'s reopened too.</p>';c.prepend(n)}
+}
+
+// ------------ codex ------------
+function tilesFor(id){return {red:['danger','promo'],buttons:['primary'],business:['bizbridge'],booknow:['booknow']}[id]||[]}
+function tile(key,cls,sp,name,meta,q){return `<button class="tile ${cls} ${S.newTiles.includes(key)?'new':''}" data-t="${key}" ${q?`data-q="${q}"`:''}><span class="pv"></span><span class="sp">${sp}</span><b>${name}</b><small>${meta}</small></button>`}
+function renderCodex(){
+  const A=S.ans, out=(S.board.buttons&&S.board.buttons.out)||[];
+  const colour=[tile('brand','you',`<span class="sw" style="background:${BLUE}"></span>`,'Brand blue','9 roles use it'),
+    tile('ink','you',`<span class="sw" style="background:#1E293B"></span>`,'Ink','text, icons'),
+    tile('grey','you',`<span class="sw" style="background:#6B7280"></span><span class="sw" style="background:#9CA3AF"></span>`,'Secondary text','14 greys → 3 roles')];
+  if(A.red==='two')colour.push(tile('danger','you',`<span class="sw" style="background:${RED}"></span>`,'Danger','148 errors','red'),tile('promo','you',`<span class="sw" style="background:${RED}"></span>`,'Promotion','61 badges · same value','red'));
+  else if(A.red==='one')colour.push(tile('danger','you',`<span class="sw" style="background:${RED}"></span>`,'Red','errors + deals','red'));
+  else colour.push(tile('red','sus'+(S.parked.includes('red')?' parked':''),`<span class="sw" style="background:${RED}"></span>`,'Red #DC2626',S.parked.includes('red')?'parked by you':'one value, two uses?','red'));
+  const actions=[];
+  if(A.buttons==='diff')actions.push(tile('primary','you',btn(BLUE,'Go',6,24),'Trip action','612','buttons'),tile('p2','you',btn(BLUE2,'Pay',4,24),'Checkout action','238','buttons'),tile('p3','you',btn(BLUE,'Search',6,26),'Search action','141','buttons'));
+  else if(A.buttons){actions.push(tile('primary','you',btn(BLUE,'Continue',6,26),'Primary action',A.buttons==='except'?`${991-out.reduce((n,x)=>n+{a:612,b:238,c:141}[x],0)} buttons`:'991 buttons','buttons'));
+    out.forEach(x=>actions.push(tile('ex'+x,'sus',btn(x==='b'?BLUE2:BLUE,{a:'Continue',b:'Pay',c:'Search'}[x],4,24),'Kept apart',{a:'Trip · 612',b:'Checkout · 238',c:'Search · 141'}[x],'buttons')))}
+  else actions.push(tile('blues','sus'+(S.parked.includes('buttons')?' parked':''),btn(BLUE,'Continue',6,24),'3 blue buttons',S.parked.includes('buttons')?'parked by you':'one job?','buttons'));
+  actions.push(tile('sec','you',`<span class="prod" style="background:#fff;color:${BLUE};box-shadow:inset 0 0 0 1.5px ${BLUE};border-radius:6px;height:24px">Edit</span>`,'Secondary action','401 buttons'));
+  actions.push(tile('link','obs',`<span style="color:${BLUE};text-decoration:underline;font-size:13px">View details</span>`,'Text links','330 · not asked yet'));
+  if(A.booknow)actions.push(tile('booknow',A.booknow==='exception'?'you':'sus',btn(GREEN,'Book now',9,26),A.booknow==='exception'?'Exception: Book now':'Drift: Book now',A.booknow==='exception'?'9 · protected':'9 · tidy-up','booknow'));
+  const bz=A.business;
+  const ctx=`<div class="ctxs"><div class="ctx"><b>Waypoint app</b>${btn(BLUE,'Continue',6,24)}<small style="font:400 11px var(--f-mono);color:var(--ink-2)">consumer theme</small></div>
+    <div class="ctx"><b>Business portal</b>${btn(bz==='themed'?KESTREL:BLUE,'Approve',6,24)}<small style="font:400 11px var(--f-mono);color:var(--ink-2)">${bz==='themed'?'partner theme':bz==='locked'?'locked to app':bz==='own'?'own role':'relationship unknown'}</small></div></div>
+    <div class="ctx" style="background:none;padding:2px 0"><span class="bridge" ${bz?'':'style="color:var(--sus)"'}>${bz==='themed'?'↔ shares Primary action behaviour, not colour':bz==='locked'?'↔ identical by your decision':bz==='own'?'× separate roles':'? identical today, not yet decided'}</span></div>`;
+  const pop=S.popup==='ctx'?`<div class="pop"><b>Where the blue buttons appear</b><div class="ev" style="justify-content:start">${['Trip page','Checkout','Search'].map((n,i)=>`<div class="mini" style="max-width:110px"><div class="ph" style="height:30px"></div><div class="ln"></div><div class="eb" style="background:${i===1?BLUE2:BLUE};border-radius:${i===1?3:5}px;height:${i===2?26:22}px">${['Continue','Pay','Search'][i]}</div><small style="font:400 10px var(--f-mono);color:#555">${n}</small></div>`).join('')}</div><button class="btn alt" id="cpop">Close</button></div>`:'';
+  const notes=S.notes.length?`<div class="group"><div class="ghead"><span>Your notes</span><span>${S.notes.length}</span></div>${S.notes.map(n=>`<div style="font-size:14px;border-left:2px solid var(--you);padding-left:10px">${n}</div>`).join('')}</div>`:'';
+  document.getElementById('codex').innerHTML=`${pop}
+    <div class="group"><div class="ghead"><span>Colour</span><span>foundations</span></div><div class="tiles">${colour.join('')}</div></div>
+    <div class="group"><div class="ghead"><span>Actions</span><span>components</span></div><div class="tiles">${actions.join('')}</div></div>
+    <div class="group"><div class="ghead"><span>Contexts</span><span>systems that coexist</span></div>${ctx}</div>${notes}
+    <div class="group"><div class="ghead"><span>Not asked yet</span><span>low impact</span></div><div style="font-size:14px;color:var(--ink-2)">Date pickers (3 versions) · card spacing · 6 icon sizes</div></div>`;
+  document.querySelectorAll('.tile[data-q]').forEach(t=>t.onclick=()=>reopen(t.dataset.q));
+  const cp=document.getElementById('cpop');if(cp)cp.onclick=()=>{S.popup=null;renderCodex()};
+}
+function renderAll(){renderState();renderBrief();renderCodex();S.newTiles=[]}
+renderAll();
+</script>

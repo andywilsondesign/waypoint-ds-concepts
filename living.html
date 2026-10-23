@@ -1,0 +1,362 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Waypoint Living System</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Red+Hat+Display:wght@500;700;800&family=Red+Hat+Mono:wght@400;500&family=Red+Hat+Text:wght@400;500;600&display=swap">
+<style>
+body{margin:0}[hidden]{display:none!important}img{max-width:100%}
+/* Layout: one living specimen dish fills the screen. HUD top-left, lens switch top-centre, inspector on the right, history strip along the bottom. Deliberately dark-only: the dish glows. */
+:root{
+  --void:#080C11; --dish:#0D131A; --ink:#E8EEF3; --ink-2:#9AA7B4; --ink-3:#5F6C79; --line:#1E2933; --panel:#0F171F;
+  --decided:#7FE3C6; --suspect:#F2B65A; --anomaly:#FF6FA8; --observed:#6E7F90; --focus:#9CC8FF;
+  --f-display:'Red Hat Display',system-ui,sans-serif; --f-body:'Red Hat Text',system-ui,sans-serif; --f-mono:'Red Hat Mono',ui-monospace,monospace;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+html,body{height:100%}
+body{background:var(--void);color:var(--ink);font:400 14px/1.45 var(--f-body);overflow:hidden}
+button,input{font:inherit;color:inherit}
+button{cursor:pointer}
+:focus-visible{outline:2px solid var(--focus);outline-offset:2px}
+canvas{position:absolute;inset:0;width:100%;height:100%;display:block;touch-action:none}
+.hud{position:absolute;top:calc(16px + env(safe-area-inset-top,0px));left:max(16px,env(safe-area-inset-left,0px));display:grid;gap:10px;max-width:min(330px,calc(100% - 32px));z-index:3;pointer-events:none}
+.hud > *{pointer-events:auto}
+.hud h1{margin:0;font:800 20px var(--f-display);letter-spacing:-.01em}
+.hud h1 span{font-weight:500;color:var(--ink-2)}
+.vitals{display:flex;gap:14px;flex-wrap:wrap;font:500 12px var(--f-mono);color:var(--ink-2)}
+.vitals b{font:700 18px var(--f-display);color:var(--ink);margin-right:4px}
+.vitals .s b{color:var(--suspect)}.vitals .a b{color:var(--anomaly)}.vitals .d b{color:var(--decided)}
+.hint{font-size:13px;color:var(--ink-2);background:rgba(13,19,26,.85);border:1px solid var(--line);border-radius:10px;padding:10px 12px}
+.hint b{color:var(--ink)}
+.key{display:flex;gap:12px;flex-wrap:wrap;font:400 11.5px var(--f-mono);color:var(--ink-2)}
+.key i{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:5px;vertical-align:-1px}
+.lens{position:absolute;top:calc(16px + env(safe-area-inset-top,0px));right:max(16px,env(safe-area-inset-right,0px));display:flex;background:var(--panel);border:1px solid var(--line);border-radius:999px;padding:3px;z-index:3}
+.lens button{background:none;border:0;border-radius:999px;padding:7px 14px;font:600 13px var(--f-body);color:var(--ink-2)}
+.lens button[aria-pressed="true"]{background:var(--ink);color:var(--void)}
+.insp{position:absolute;top:calc(12px + env(safe-area-inset-top,0px));right:max(12px,env(safe-area-inset-right,0px));bottom:calc(84px + env(safe-area-inset-bottom,0px));width:min(360px,calc(100% - 24px));background:rgba(15,23,31,.94);backdrop-filter:blur(8px);border:1px solid var(--line);border-radius:14px;z-index:4;display:flex;flex-direction:column;transform:translateX(110%);transition:transform .35s cubic-bezier(.4,.1,.2,1)}
+.insp.open{transform:none}
+.insp:not(.open){visibility:hidden;transition:transform .35s,visibility 0s .35s}
+.ihead{display:flex;justify-content:space-between;align-items:center;padding:12px 16px;border-bottom:1px solid var(--line)}
+.ibody{padding:16px;overflow:auto;display:grid;gap:16px;align-content:start}
+.x{background:none;border:1px solid var(--line);border-radius:6px;padding:3px 9px;font-size:12px;color:var(--ink-2)}
+.status{font:500 11px var(--f-mono);letter-spacing:.06em;text-transform:uppercase}
+.st-decided{color:var(--decided)}.st-suspected{color:var(--suspect)}.st-observed{color:var(--observed)}.st-exception,.st-anomaly{color:var(--anomaly)}
+.ibody h2{margin:0;font:700 22px/1.15 var(--f-display);letter-spacing:-.01em}
+.ev{display:flex;gap:8px;flex-wrap:wrap}
+.evc{flex:1 1 92px;background:#F4F6F8;border-radius:8px;padding:10px;display:grid;gap:6px;justify-items:center;color:#334}
+.evc small{font:500 10.5px var(--f-mono);color:#556;text-align:center}
+.pb{all:unset;color:#fff;font:600 12px/1 system-ui,sans-serif;padding:0 12px;display:inline-flex;align-items:center;height:28px}
+.ctxbars{display:grid;gap:6px}
+.cb{display:grid;grid-template-columns:96px 1fr 44px;gap:8px;align-items:center;font-size:12.5px}
+.cb .bar{height:8px;border-radius:4px;background:var(--line);overflow:hidden}
+.cb .bar span{display:block;height:100%;border-radius:4px}
+.cb .n{font:500 11.5px var(--f-mono);color:var(--ink-2);text-align:right;font-variant-numeric:tabular-nums}
+.facts{display:grid;gap:7px;font-size:13.5px}
+.facts div{display:grid;grid-template-columns:78px 1fr;gap:8px}
+.facts span:first-child{font:500 10.5px/1.9 var(--f-mono);text-transform:uppercase;letter-spacing:.05em;color:var(--ink-3)}
+.acts{display:grid;gap:8px}
+.act{text-align:left;background:var(--dish);border:1px solid var(--line);border-radius:10px;padding:11px 13px;display:grid;gap:2px}
+.act:hover,.act:focus-visible{border-color:var(--decided)}
+.act b{font-weight:600;font-size:14px}
+.act span{font-size:12.5px;color:var(--ink-2)}
+.act.warn:hover{border-color:var(--anomaly)}
+.preview{border:1px dashed var(--decided);border-radius:10px;padding:12px;display:grid;gap:8px;font-size:13.5px}
+.preview ul{margin:0;padding-left:18px}
+.row{display:flex;gap:8px;flex-wrap:wrap}
+.go{background:var(--decided);color:var(--void);border:0;border-radius:8px;padding:9px 14px;font-weight:600}
+.no{background:none;border:1px solid var(--line);border-radius:8px;padding:9px 14px;color:var(--ink-2)}
+.namein{background:var(--dish);border:1px solid var(--line);border-radius:8px;padding:8px 10px;font:600 15px var(--f-body);width:100%}
+.hist{position:absolute;left:max(12px,env(safe-area-inset-left,0px));right:max(12px,env(safe-area-inset-right,0px));bottom:calc(12px + env(safe-area-inset-bottom,0px));min-height:60px;background:rgba(15,23,31,.94);border:1px solid var(--line);border-radius:14px;z-index:5;display:flex;align-items:center;gap:14px;padding:10px 14px;overflow-x:auto}
+.hist .lbl{font:500 11px var(--f-mono);letter-spacing:.06em;text-transform:uppercase;color:var(--ink-3);flex:none}
+.notches{display:flex;align-items:center;gap:0;flex:none}
+.notch{display:flex;align-items:center;gap:8px;background:none;border:0;padding:4px 6px;border-radius:8px;font-size:12.5px;color:var(--ink-2);white-space:nowrap}
+.notch i{width:12px;height:12px;border-radius:50%;border:2px solid var(--decided);flex:none}
+.notch.on i{background:var(--decided)}
+.notch.future{opacity:.4}
+.notch.cur{color:var(--ink);background:var(--line)}
+.notch + .notch::before{content:"";width:18px;height:2px;background:var(--line);margin-right:2px}
+.timebanner{flex:none;display:flex;gap:8px;align-items:center;font-size:12.5px;color:var(--suspect)}
+.timebanner button{background:none;border:1px solid var(--line);border-radius:6px;padding:4px 9px;font-size:12px}
+.toast{position:absolute;left:50%;bottom:calc(86px + env(safe-area-inset-bottom,0px));transform:translate(-50%,20px);opacity:0;background:var(--ink);color:var(--void);padding:9px 14px;border-radius:8px;font-size:13px;z-index:6;transition:all .35s;pointer-events:none;max-width:calc(100% - 32px)}
+.toast.show{opacity:1;transform:translate(-50%,0)}
+@media (max-width:760px){
+  .hint,.key{display:none}
+  .lens{top:auto;bottom:calc(84px + env(safe-area-inset-bottom,0px));right:50%;transform:translateX(50%)}
+  .insp{top:auto;height:62%;bottom:calc(78px + env(safe-area-inset-bottom,0px))}
+  .insp{transform:translateY(120%)}.insp.open{transform:none}
+.insp:not(.open){visibility:hidden;transition:transform .35s,visibility 0s .35s}
+}
+@media (prefers-reduced-motion: reduce){.insp,.toast{transition:none}}
+</style>
+
+<canvas id="c" aria-label="Living map of design concepts. Use the inspector and history controls to act."></canvas>
+<div class="hud">
+  <h1>Waypoint <span>living system</span></h1>
+  <div class="vitals" id="vitals" aria-live="polite"></div>
+  <div class="hint" id="hint"><b>Every grain is about 25 real elements.</b> Membranes are concepts. Tap one to inspect. Drag one onto another to connect them. Switch lens to see where looks and meaning disagree.</div>
+  <div class="key"><span><i style="background:var(--decided)"></i>you decided</span><span><i style="border:1.5px dashed var(--suspect)"></i>suspected</span><span><i style="background:var(--observed)"></i>observed</span><span><i style="background:var(--anomaly)"></i>anomaly / exception</span></div>
+</div>
+<div class="lens" role="group" aria-label="Lens"><button id="lm" aria-pressed="true">By meaning</button><button id="la" aria-pressed="false">By appearance</button></div>
+<aside class="insp" id="insp" aria-label="Inspector"><div class="ihead"><span class="status" id="istat"></span><button class="x" id="ix">Close</button></div><div class="ibody" id="ibody"></div></aside>
+<div class="hist" id="hist"></div>
+<div class="toast" id="toast" role="status"></div>
+
+<script>
+const BLUE='#2563EB',BLUE2='#2460E0',GREEN='#16A34A',RED='#EF3B3B',GREY='#8A93A0',WHITE='#E9EEF2';
+// ---------- base model ----------
+const BASE_C=[
+ {id:'brand',name:'Brand blue',st:'decided',x:0.12,y:0.16,kind:'colour'},
+ {id:'greys',name:'Greys → 3 roles',st:'decided',x:0.08,y:0.62,kind:'colour'},
+ {id:'red',name:'Red #DC2626',st:'suspected',x:0.3,y:0.74,kind:'colour'},
+ {id:'blue',name:'Filled blue buttons',st:'suspected',x:0.42,y:0.36,kind:'component'},
+ {id:'biz',name:'Business “Approve”',st:'observed',x:0.82,y:0.22,kind:'component'},
+ {id:'book',name:'“Book now”',st:'anomaly',x:0.62,y:0.04,kind:'component'},
+ {id:'sec',name:'Secondary action',st:'decided',x:0.68,y:0.6,kind:'component'},
+ {id:'fields',name:'Text fields',st:'decided',x:0.52,y:1.0,kind:'component'},
+ {id:'cards',name:'Result cards',st:'decided',x:0.9,y:0.86,kind:'component'},
+];
+// [concept, ctx, shape, colour, grains, real count, look cluster]
+const GROUPS=[
+ ['brand','usage','dot',BLUE,14,350,'brand'],
+ ['greys','usage','dot',GREY,14,340,'greys'],
+ ['red','Errors','dot',RED,10,148,'red'],['red','Deals','sq',RED,6,61,'red'],
+ ['blue','Trip & account','pill',BLUE,18,612,'bluepill'],['blue','Checkout','pill',BLUE2,8,238,'bluepill'],['blue','Search','tall',BLUE,6,141,'bluepill'],
+ ['biz','Business portal','pill',BLUE,8,203,'bluepill'],
+ ['book','Checkout review','big',GREEN,1,9,'green'],
+ ['sec','all','outline',BLUE,12,401,'outline'],
+ ['fields','all','field',GREY,12,612,'field'],
+ ['cards','all','card',WHITE,10,388,'card'],
+];
+const LOOK={brand:[.12,.16,'Blue swatch'],greys:[.08,.62,'Grey'],red:[.30,.74,'Red #DC2626'],bluepill:[.50,.30,'Filled blue pill'],green:[.62,.04,'Green pill'],outline:[.68,.60,'Outlined pill'],field:[.52,1.0,'Bordered box'],card:[.90,.86,'White card']};
+// dependencies; via = only the child that holds this context inherits it after a split
+const BASE_F=[['blue','brand'],['sec','brand'],['biz','brand',null,'faint'],['red','fields','Errors'],['red','cards','Deals'],['fields','greys'],['cards','greys'],['book','blue',null,'faint']];
+const SPLITNAME={Errors:'Danger',Deals:'Promotion','Trip & account':'Trip action',Checkout:'Checkout action',Search:'Search action'};
+
+// grains (persist across replays so changes animate)
+const G=[];
+GROUPS.forEach(([c,ctx,shape,col,n,real,look])=>{for(let i=0;i<n;i++)G.push({c0:c,c,ctx,shape,col,w:real/n,look,x:Math.random(),y:Math.random(),vx:0,vy:0,flash:0})});
+
+let ops=[], cursor=0;   // history
+let C=[], F=[];         // current derived model
+const pos={};            // anchor positions survive replays
+function replay(){
+  C=BASE_C.map(c=>({...c}));F=BASE_F.map(f=>[...f]);
+  G.forEach(g=>g.c=g.c0);
+  C.forEach(c=>{if(!pos[c.id])pos[c.id]=[c.x,c.y]});
+  for(const op of ops.slice(0,cursor)) apply(op);
+}
+const byId=id=>C.find(c=>c.id===id);
+function apply(op){
+  const c=byId(op.id);
+  if(!c||(op.into&&!byId(op.into)))return; // an earlier undo removed what this change depended on
+  if(op.t==='confirm'){c.st='decided';c.name=op.name}
+  if(op.t==='exception'){c.st='exception';c.name='“Book now” · exception'}
+  if(op.t==='split'){
+    const ctxs=[...new Set(G.filter(g=>g.c===c.id).map(g=>g.ctx))];
+    const [px,py]=pos[c.id];
+    ctxs.forEach((ctx,i)=>{const id=c.id+':'+ctx;const a=(i/ctxs.length)*Math.PI*2+.6;
+      if(!pos[id])pos[id]=[px+Math.cos(a)*.085,py+Math.sin(a)*.11];
+      C.push({id,name:SPLITNAME[ctx]||ctx,st:'decided',kind:c.kind,parent:c.id});
+      G.filter(g=>g.c===c.id&&g.ctx===ctx).forEach(g=>g.c=id);
+      F.forEach(f=>{if(f[0]===c.id&&(!f[2]||f[2]===ctx))F.push([id,f[1],null,f[3]]);if(f[1]===c.id)F.push([f[0],id,null,f[3]])});
+    });
+    F=F.filter(f=>f[0]!==c.id&&f[1]!==c.id);C=C.filter(x=>x!==c);
+  }
+  if(op.t==='merge'){const into=byId(op.into);G.filter(g=>g.c===c.id).forEach(g=>g.c=into.id);
+    F=F.map(f=>[f[0]===c.id?into.id:f[0],f[1]===c.id?into.id:f[1],f[2],f[3]]).filter(f=>f[0]!==f[1]);C=C.filter(x=>x!==c)}
+  if(op.t==='theme'){c.st='decided';c.name='Primary action · partner theme';c.themeOf=op.into;
+    F=F.filter(f=>!(f[0]===c.id&&f[1]==='brand'));F.push([c.id,op.into,null,'theme'])}
+}
+function commit(op,msg,ripple){
+  ops=ops.slice(0,cursor);ops.push(op);cursor=ops.length;replay();
+  if(ripple)startRipple(ripple);
+  sel=op.t==='merge'?op.into:(op.t==='split'?null:op.id);pending=null;
+  toast(msg);renderAll();
+}
+
+// ---------- canvas & sim ----------
+const cv=document.getElementById('c'),ctx=cv.getContext('2d');let Wd,Ht,dpr;
+function size(){dpr=Math.min(2,devicePixelRatio||1);Wd=innerWidth;Ht=innerHeight;cv.width=Wd*dpr;cv.height=Ht*dpr;ctx.setTransform(dpr,0,0,dpr,0,0)}
+addEventListener('resize',size);size();
+G.forEach(g=>{g.x=Wd/2+(Math.random()-.5)*60;g.y=Ht/2+(Math.random()-.5)*60});
+let lens='meaning',sel=null,pending=null,drag=null,hover=null,t0=performance.now();
+const reduce=matchMedia('(prefers-reduced-motion: reduce)').matches;
+const K=()=>Math.max(.55,Math.min(1,Math.min(Wd,Ht*1.4)/1150)), side=()=>(sel&&Wd>760?372:0), sx=x=>50+x*(Wd-110-side()), sy=y=>150+y*(Ht-(Wd>760?300:330));
+
+function anchorOf(g){if(lens==='appearance'){const L=LOOK[g.look];return[sx(L[0]),sy(L[1])]}const p=pos[g.c];return[sx(p[0]),sy(p[1])]}
+function step(){
+  for(const g of G){const [ax,ay]=anchorOf(g);g.vx+=(ax-g.x)*.012;g.vy+=(ay-g.y)*.012}
+  for(let i=0;i<G.length;i++)for(let j=i+1;j<G.length;j++){const a=G[i],b=G[j];const dx=b.x-a.x,dy=b.y-a.y,d2=dx*dx+dy*dy;const R=15*K();if(d2<R*R&&d2>.01){const d=Math.sqrt(d2),f=(R-d)/d*.09;a.vx-=dx*f;a.vy-=dy*f;b.vx+=dx*f;b.vy+=dy*f}}
+  for(const g of G){g.vx*=.82;g.vy*=.82;g.x+=g.vx;g.y+=g.vy;if(g.flash>0)g.flash-=.012}
+}
+function hull(id){const m=G.filter(g=>g.c===id);if(!m.length)return null;let cx=0,cy=0;m.forEach(g=>{cx+=g.x;cy+=g.y});cx/=m.length;cy/=m.length;let r=0;m.forEach(g=>r=Math.max(r,Math.hypot(g.x-cx,g.y-cy)));return{cx,cy,r:r+18*K(),n:m.length,real:Math.round(m.reduce((s,g)=>s+g.w,0))}}
+function lookHull(look){const m=G.filter(g=>g.look===look);let cx=0,cy=0;m.forEach(g=>{cx+=g.x;cy+=g.y});cx/=m.length;cy/=m.length;let r=0;m.forEach(g=>r=Math.max(r,Math.hypot(g.x-cx,g.y-cy)));return{cx,cy,r:r+16}}
+const stCol=st=>({decided:'#7FE3C6',suspected:'#F2B65A',observed:'#6E7F90',anomaly:'#FF6FA8',exception:'#FF6FA8'}[st]);
+function membrane(h,col,dashed,t,seed,selected){
+  ctx.beginPath();const n=40;
+  for(let i=0;i<=n;i++){const a=i/n*Math.PI*2;const w=reduce?0:(Math.sin(a*3+t*.0012+seed)*.035+Math.sin(a*5-t*.0009+seed*2)*.02);const r=h.r*(1+w);const x=h.cx+Math.cos(a)*r,y=h.cy+Math.sin(a)*r;i?ctx.lineTo(x,y):ctx.moveTo(x,y)}
+  const gr=ctx.createRadialGradient(h.cx,h.cy,h.r*.2,h.cx,h.cy,h.r);gr.addColorStop(0,col+'10');gr.addColorStop(1,col+(selected?'38':'22'));
+  ctx.fillStyle=gr;ctx.fill();ctx.setLineDash(dashed?[6,6]:[]);ctx.lineDashOffset=dashed&&!reduce?-t*.01:0;ctx.strokeStyle=col+(selected?'ff':'aa');ctx.lineWidth=selected?2.2:1.3;ctx.stroke();ctx.setLineDash([]);
+}
+let ripples=[];
+function startRipple(ids){ids.forEach(id=>{F.filter(f=>f[0]===id||f[1]===id).forEach(f=>ripples.push({f,p:0,from:id}));G.filter(g=>g.c===id||(g.c.startsWith(id+':'))).forEach(g=>g.flash=1)})}
+function grain(g,tension){
+  ctx.save();ctx.translate(g.x,g.y);ctx.scale(K(),K());
+  if(tension){ctx.shadowColor='#FF6FA8';ctx.shadowBlur=14}
+  else if(g.flash>0){ctx.shadowColor='#7FE3C6';ctx.shadowBlur=16*g.flash}
+  ctx.fillStyle=g.col;ctx.strokeStyle=g.col;ctx.lineWidth=1.3;
+  const rr=(x,y,w,h,r)=>{ctx.beginPath();ctx.roundRect?ctx.roundRect(x,y,w,h,r):ctx.rect(x,y,w,h)};
+  switch(g.shape){
+    case'dot':ctx.beginPath();ctx.arc(0,0,3.6,0,7);ctx.fill();break;
+    case'sq':rr(-4,-3,8,6,1);ctx.fill();break;
+    case'pill':rr(-7,-3.2,14,6.4,g.col===BLUE2?1.5:3.2);ctx.fill();break;
+    case'tall':rr(-7,-4.4,14,8.8,3.2);ctx.fill();break;
+    case'big':ctx.shadowColor='#FF6FA8';ctx.shadowBlur=18;rr(-11,-5.5,22,11,5.5);ctx.fill();break;
+    case'outline':rr(-7,-3.2,14,6.4,3.2);ctx.stroke();break;
+    case'field':rr(-7,-3.5,14,7,1.5);ctx.stroke();break;
+    case'card':rr(-5,-4,10,8,1.6);ctx.fill();break;
+  }
+  ctx.restore();
+}
+function frame(t){
+  step();
+  ctx.fillStyle='#080C11';ctx.fillRect(0,0,Wd,Ht);
+  // dish
+  const dg=ctx.createRadialGradient(Wd*.42,Ht*.5,50,Wd*.42,Ht*.5,Math.max(Wd,Ht)*.7);dg.addColorStop(0,'#111A23');dg.addColorStop(1,'#080C11');ctx.fillStyle=dg;ctx.fillRect(0,0,Wd,Ht);
+  const H={};C.forEach(c=>H[c.id]=hull(c.id));
+  // filaments
+  if(lens==='meaning'){for(const f of F){const a=H[f[0]],b=H[f[1]];if(!a||!b)continue;const ca=byId(f[0]),cb=byId(f[1]);const dec=ca.st==='decided'&&cb.st==='decided'||f[3]==='theme';
+    ctx.beginPath();const mx=(a.cx+b.cx)/2+(b.cy-a.cy)*.15,my=(a.cy+b.cy)/2-(b.cx-a.cx)*.15;ctx.moveTo(a.cx,a.cy);ctx.quadraticCurveTo(mx,my,b.cx,b.cy);
+    ctx.setLineDash(dec?[]:[3,6]);ctx.strokeStyle=f[3]==='theme'?'#7FE3C6':dec?'rgba(127,227,198,.35)':f[3]==='faint'?'rgba(110,127,144,.3)':'rgba(242,182,90,.45)';ctx.lineWidth=f[3]==='theme'?2.4:1.2;ctx.stroke();ctx.setLineDash([]);
+    if(f[3]==='theme'){ctx.fillStyle='#7FE3C6';ctx.font='500 11px "Red Hat Mono",monospace';ctx.textAlign='center';ctx.fillText('shares behaviour · own colour',mx,my-6)}}}
+  // ripples
+  ripples=ripples.filter(r=>r.p<1);for(const r of ripples){r.p+=reduce?1:.012;const a=H[r.f[0]],b=H[r.f[1]];if(!a||!b)continue;const fwd=r.from===r.f[0];const p=fwd?r.p:1-r.p;
+    const mx=(a.cx+b.cx)/2+(b.cy-a.cy)*.15,my=(a.cy+b.cy)/2-(b.cx-a.cx)*.15;const x=(1-p)*(1-p)*a.cx+2*(1-p)*p*mx+p*p*b.cx,y=(1-p)*(1-p)*a.cy+2*(1-p)*p*my+p*p*b.cy;
+    ctx.beginPath();ctx.arc(x,y,4,0,7);ctx.fillStyle='#7FE3C6';ctx.shadowColor='#7FE3C6';ctx.shadowBlur=14;ctx.fill();ctx.shadowBlur=0;
+    if(r.p>=.98){const other=fwd?r.f[1]:r.f[0];G.filter(g=>g.c===other).forEach(g=>g.flash=Math.max(g.flash,.7))}}
+  // membranes
+  if(lens==='meaning'){C.forEach((c,i)=>{const h=H[c.id];if(!h)return;membrane(h,stCol(c.st),c.st==='suspected',t,i,sel===c.id||(drag&&drag.target===c.id));
+      if(c.st==='exception'){ctx.beginPath();ctx.arc(h.cx,h.cy,h.r+7,0,7);ctx.strokeStyle='rgba(255,111,168,.55)';ctx.setLineDash([2,4]);ctx.stroke();ctx.setLineDash([])}
+      ctx.textAlign='center';ctx.fillStyle='#E8EEF3';ctx.font='700 13px "Red Hat Display",sans-serif';ctx.fillText(c.name,h.cx,h.cy-h.r-16);
+      ctx.fillStyle=stCol(c.st);ctx.font='500 10.5px "Red Hat Mono",monospace';ctx.fillText(`${{decided:'decided by you',suspected:'suspected',observed:'observed only',anomaly:'anomaly',exception:'kept on purpose'}[c.st]} · ${h.real}`,h.cx,h.cy-h.r-3)})}
+  else {Object.keys(LOOK).forEach((k,i)=>{const h=lookHull(k);membrane(h,'#9AA7B4',true,t,i,false);ctx.textAlign='center';ctx.fillStyle='#9AA7B4';ctx.font='600 12px "Red Hat Display",sans-serif';ctx.fillText(LOOK[k][2],h.cx,h.cy-h.r-6)})}
+  // pending previews: ghost targets
+  if(pending&&pending.t==='split'&&lens==='meaning'){const h=H[pending.id];const ctxs=[...new Set(G.filter(g=>g.c===pending.id).map(g=>g.ctx))];
+    ctxs.forEach((cx_,i)=>{const a=(i/ctxs.length)*Math.PI*2+.6;const x=h.cx+Math.cos(a)*h.r*1.25,y=h.cy+Math.sin(a)*h.r*1.25;ctx.beginPath();ctx.arc(x,y,26,0,7);ctx.setLineDash([4,4]);ctx.strokeStyle='#7FE3C6';ctx.stroke();ctx.setLineDash([]);
+      ctx.fillStyle='#7FE3C6';ctx.font='600 11.5px "Red Hat Text",sans-serif';ctx.textAlign='center';ctx.fillText(SPLITNAME[cx_]||cx_,x,y+4);
+      ctx.beginPath();ctx.moveTo(h.cx,h.cy);ctx.lineTo(x,y);ctx.strokeStyle='rgba(127,227,198,.3)';ctx.stroke()})}
+  // tension: grains whose meaning differs from the majority meaning in their look cluster
+  const maj={};if(lens==='appearance'){const cnt={};G.forEach(g=>{const k=g.look;cnt[k]=cnt[k]||{};const m=meaningRoot(g.c);cnt[k][m]=(cnt[k][m]||0)+1});for(const k in cnt)maj[k]=Object.entries(cnt[k]).sort((a,b)=>b[1]-a[1])[0][0]}
+  for(const g of G)grain(g,lens==='appearance'&&meaningRoot(g.c)!==maj[g.look]);
+  if(lens==='appearance'){ctx.textAlign='center';ctx.fillStyle='#FF6FA8';ctx.font='500 12px "Red Hat Mono",monospace';const n=tensionList();const X=(Wd-side())/2;if(n.length){ctx.fillText('Glowing grains look alike but mean different things',X,Ht-112);ctx.fillStyle='#9AA7B4';ctx.fillText(n.join(' · '),X,Ht-94)}else ctx.fillText('Looks and meaning agree everywhere you have decided',X,Ht-96)}
+  requestAnimationFrame(frame);
+}
+function meaningRoot(id){const c=byId(id);return c&&c.themeOf?id:id}
+function tensionList(){const out=[];const has=id=>C.some(c=>c.id===id);
+  if(has('red:Errors')&&has('red:Deals'))out.push('Danger vs Promotion');
+  if(byId('biz')&&byId('biz').themeOf)out.push('Business vs consumer actions');
+  else if(byId('biz')&&byId('blue'))out.push('Business vs consumer actions (undecided)');
+  if(has('blue:Search'))out.push('Search vs Trip actions');
+  return out}
+
+// ---------- pointer ----------
+function hit(x,y){let best=null,bd=1e9;for(const c of C){const h=hull(c.id);if(!h)continue;const d=Math.hypot(x-h.cx,y-h.cy);if(d<h.r&&d<bd){bd=d;best=c.id}}return best}
+cv.addEventListener('pointerdown',e=>{if(lens!=='meaning')return;const id=hit(e.clientX,e.clientY);if(!id){sel=null;pending=null;renderInsp();return}drag={id,sx:e.clientX,sy:e.clientY,moved:false,orig:[...pos[id]]};cv.setPointerCapture(e.pointerId)});
+cv.addEventListener('pointermove',e=>{if(!drag){cv.style.cursor=lens==='meaning'&&hit(e.clientX,e.clientY)?'grab':'default';return}
+  const dx=e.clientX-drag.sx,dy=e.clientY-drag.sy;if(Math.hypot(dx,dy)>6)drag.moved=true;if(!drag.moved)return;
+  const W2=(Wd-110-side());pos[drag.id]=[drag.orig[0]+dx/W2,drag.orig[1]+dy/(Ht-(Wd>760?300:330))];
+  const h=hull(drag.id);drag.target=null;for(const c of C){if(c.id===drag.id)continue;const o=hull(c.id);if(o&&Math.hypot(o.cx-h.cx,o.cy-h.cy)<(o.r+h.r)*.75)drag.target=c.id}});
+cv.addEventListener('pointerup',()=>{if(!drag)return;const d=drag;drag=null;
+  if(!d.moved){sel=d.id;pending=null;renderInsp();return}
+  if(d.target){pos[d.id]=d.orig;sel=d.id;pending={t:'connect',id:d.id,into:d.target};renderInsp()}});
+
+// ---------- inspector ----------
+const I=document.getElementById('insp'),IB=document.getElementById('ibody');
+document.getElementById('ix').onclick=()=>{sel=null;pending=null;renderInsp()};
+const pb=(c,t,r=6,h=28)=>`<span class="pb" style="background:${c};border-radius:${r}px;height:${h}px">${t}</span>`;
+const EVID={
+ red:`<div class="evc"><div style="width:84px;height:18px;border:1.5px solid #DC2626;border-radius:3px;background:#fff"></div><span style="font:500 10px system-ui;color:#DC2626">Invalid passport</span><small>Errors · 148</small></div><div class="evc"><span style="background:#DC2626;color:#fff;font:700 10px system-ui;padding:3px 6px;border-radius:3px">DEAL −30%</span><small>Deals · 61</small></div>`,
+ blue:`<div class="evc">${pb(BLUE,'Continue')}<small>Trip · 612</small></div><div class="evc">${pb(BLUE2,'Pay £412',3)}<small>Checkout · 238</small></div><div class="evc">${pb(BLUE,'Search',6,34)}<small>Search · 141</small></div>`,
+ biz:`<div class="evc">${pb(BLUE,'Approve')}<small>Business · 203</small></div><div class="evc">${pb(BLUE,'Continue')}<small>Consumer · 612</small></div>`,
+ book:`<div class="evc">${pb('#15803D','Book now',9,34)}<small>Checkout review · 9</small></div><div class="evc">${pb(BLUE2,'Pay £412',3)}<small>Checkout · 238</small></div>`,
+};
+const FACTS={
+ red:[['Observed','One value in two places: form errors and Deal badges.'],['Suspected','Grouped only because the value matches.'],['At stake','Change error red and every promotion changes too.']],
+ blue:[['Observed','991 filled blue buttons. They end a task in every context.'],['Differs','Checkout corners are sharper. Search is taller.'],['Suspected','One concept with drift. Inferred from code, not confirmed.']],
+ biz:[['Observed','Pixel-identical to consumer buttons today.'],['Context','Partners can set their own brand colour.'],['At stake','Merging would stop partners recolouring actions.']],
+ book:[['Observed','9 buttons, last checkout step only.'],['Source','Experiment note, May 2023: “won, keep”.'],['Anomaly','Belongs to no concept. Looks like nothing else.']],
+};
+function renderInsp(){
+  const c=sel&&byId(sel);
+  if(!c){I.classList.remove('open');return}
+  I.classList.add('open');
+  const h=hull(c.id),root=c.parent||c.id;
+  const st=document.getElementById('istat');st.className='status st-'+c.st;st.textContent={decided:'Decided by you',suspected:'Suspected by the system',observed:'Observed only',anomaly:'Anomaly',exception:'Exception · kept on purpose'}[c.st];
+  const ctxs={};G.filter(g=>g.c===c.id).forEach(g=>{ctxs[g.ctx]=(ctxs[g.ctx]||{n:0,col:g.col});ctxs[g.ctx].n+=g.w});const max=Math.max(...Object.values(ctxs).map(v=>v.n));
+  const deps=F.filter(f=>f[0]===c.id).map(f=>byId(f[1])?.name).filter(Boolean),users=F.filter(f=>f[1]===c.id).map(f=>byId(f[0])?.name).filter(Boolean);
+  let acts='';
+  if(pending&&pending.t==='connect'){const into=byId(pending.into);
+    acts=`<div class="preview"><b>Connect ${c.name} to ${into.name}?</b><span style="color:var(--ink-2)">They look identical. Choose what that means.</span></div><div class="acts">
+      ${c.id==='biz'&&into.st==='decided'?`<button class="act" data-do="theme"><b>Same concept, partner's colour</b><span>Shares behaviour. Keeps its own theme slot. Both systems coexist.</span></button>`:''}
+      <button class="act warn" data-do="merge"><b>Merge into ${into.name}</b><span>${c.id==='biz'?'Partners lose the ability to recolour actions on 40 screens.':'Absorb every grain. This membrane disappears.'}</span></button>
+      <button class="act" data-do="cancel"><b>Leave them apart</b><span>Nothing changes.</span></button></div>
+      ${c.id==='biz'&&into.st!=='decided'?'<div class="preview" style="border-color:var(--suspect)">Tip: confirm the blue buttons as one concept first. Then Business can follow it with its own colour.</div>':''}`;}
+  else if(pending&&pending.t==='split'){const kids=Object.entries(ctxs);
+    acts=`<div class="preview"><b>Preview: split by where it's used</b><ul>${kids.map(([k,v])=>`<li>${SPLITNAME[k]||k}: ${Math.round(v.n)}</li>`).join('')}</ul><span style="color:var(--ink-2)">Dependencies follow their context. ${c.id==='red'?'Text fields will use Danger; Result cards will use Promotion.':''} Nothing changes visually.</span><div class="row"><button class="go" data-do="split-ok">Split</button><button class="no" data-do="cancel">Back</button></div></div>`}
+  else if(pending&&pending.t==='confirm'){acts=`<div class="preview"><label for="nm" style="font:500 11px var(--f-mono);text-transform:uppercase;color:var(--ink-3)">Name this concept</label><input class="namein" id="nm" value="Primary action"><span style="color:var(--ink-2)">${h.real} elements become one concept. Differences go to a tidy-up list. Business and “Book now” are not included.</span><div class="row"><button class="go" data-do="confirm-ok">Confirm</button><button class="no" data-do="cancel">Back</button></div></div>`}
+  else{
+    const a=[];
+    if(c.st==='suspected'&&Object.keys(ctxs).length>1)a.push(['confirm','One concept','Confirm it and give it a name.']);
+    if(c.st==='suspected'&&Object.keys(ctxs).length>1)a.push(['split','Split by where it\'s used',`${Object.keys(ctxs).length} concepts. ${c.id==='red'?'Same colour, different meanings.':''}`]);
+    if(c.st==='anomaly')a.push(['exception','Keep as a deliberate exception','Pin it so tidy-ups skip it.'],['absorb','It\'s drift: absorb into the blue buttons','9 elements join that concept.']);
+    if(c.st==='observed')a.push(['hintdrag','Connect to another concept','Drag this membrane onto the blue buttons.']);
+    const myOps=ops.slice(0,cursor).map((o,i)=>[o,i]).filter(([o])=>o.id===root||o.id===c.id||o.into===c.id);
+    if(myOps.length)a.push(['undo','Undo the last change here',`Reverses “${label(myOps[myOps.length-1][0])}” and anything that followed from it.`]);
+    acts=a.length?`<div class="acts">${a.map(([k,b,s])=>`<button class="act ${k==='undo'?'warn':''}" data-do="${k}"><b>${b}</b><span>${s}</span></button>`).join('')}</div>`:'<div style="color:var(--ink-2);font-size:13px">Settled. Nothing needs you here.</div>';
+  }
+  IB.innerHTML=`<h2>${c.name}</h2>${EVID[root]?`<div class="ev">${EVID[root]}</div>`:''}
+    <div class="ctxbars">${Object.entries(ctxs).map(([k,v])=>`<div class="cb"><span>${k==='usage'||k==='all'?'Everywhere':k}</span><span class="bar"><span style="width:${v.n/max*100}%;background:${v.col}"></span></span><span class="n">${Math.round(v.n)}</span></div>`).join('')}</div>
+    ${FACTS[root]&&!c.parent?`<div class="facts">${FACTS[root].map(([k,v])=>`<div><span>${k}</span><span>${v}</span></div>`).join('')}</div>`:''}
+    ${deps.length||users.length?`<div class="facts">${deps.length?`<div><span>Uses</span><span>${deps.join(', ')}</span></div>`:''}${users.length?`<div><span>Used by</span><span>${users.join(', ')}</span></div>`:''}</div>`:''}
+    ${acts}`;
+  IB.querySelectorAll('[data-do]').forEach(b=>b.onclick=()=>act(b.dataset.do,c));
+}
+function act(k,c){
+  const root=c.parent||c.id;
+  if(k==='cancel'){pending=null;renderInsp();return}
+  if(k==='split'||k==='confirm'){pending={t:k,id:c.id};renderInsp();return}
+  if(k==='split-ok'){const n=Math.round(hull(c.id).real);commit({t:'split',id:c.id},`Split ${c.name}. ${n} elements re-filed by meaning; dependencies followed.`,[]);setTimeout(()=>startRipple(C.filter(x=>x.parent===c.id).map(x=>x.id)),700);return}
+  if(k==='confirm-ok'){const nm=document.getElementById('nm').value.trim()||'Primary action';commit({t:'confirm',id:c.id,name:nm},`${nm} confirmed. ${hull(c.id).real} elements clarified.`,[c.id]);return}
+  if(k==='exception'){commit({t:'exception',id:c.id},'“Book now” pinned as a deliberate exception.',[c.id]);return}
+  if(k==='absorb'){commit({t:'merge',id:c.id,into:'blue'},'“Book now” absorbed. 9 elements added to the tidy-up list.',['blue']);return}
+  if(k==='theme'){commit({t:'theme',id:c.id,into:pending.into},'Business now follows Primary action with its own colour. Two systems coexist.',[c.id]);return}
+  if(k==='merge'){const into=pending.into;commit({t:'merge',id:c.id,into},`Merged ${c.name} into ${byId(into).name}.`,[into]);return}
+  if(k==='hintdrag'){toast('Drag the Business membrane onto the blue buttons.');return}
+  if(k==='undo'){let idx=-1;ops.slice(0,cursor).forEach((o,i)=>{if(o.id===root||o.id===c.id||o.into===c.id)idx=i});if(idx<0)return;
+    const later=cursor-idx-1;ops.splice(idx,1);cursor--;replay();sel=null;pending=null;toast(later?`Undone. ${later} later change${later>1?'s were':' was'} kept and replayed.`:'Undone. The system is back to what it suspected.');renderAll()}
+}
+function label(o){return{confirm:`Named “${o.name}”`,split:`Split ${BASE_C.find(c=>c.id===o.id)?.name||o.id}`,merge:`Merged ${BASE_C.find(c=>c.id===o.id)?.name}`,exception:'Kept “Book now” as exception',theme:'Business follows Primary, own colour'}[o.t]}
+
+// ---------- history ----------
+function renderHist(){
+  const Hh=document.getElementById('hist');
+  const notch=(i,txt)=>`<button class="notch ${i<=cursor?'on':'future'} ${i===cursor?'cur':''}" data-i="${i}"><i></i>${txt}</button>`;
+  Hh.innerHTML=`<span class="lbl">History</span><div class="notches">${notch(0,'As found')}${ops.map((o,i)=>notch(i+1,label(o))).join('')}</div>
+   ${cursor<ops.length?`<span class="timebanner">Viewing an earlier state<button id="cont">Continue from here</button><button id="latest">Back to latest</button></span>`:ops.length?'':'<span style="font-size:12.5px;color:var(--ink-3)">Your decisions appear here. Tap any point to see the system as it was.</span>'}`;
+  Hh.querySelectorAll('.notch').forEach(b=>b.onclick=()=>{cursor=+b.dataset.i;replay();sel=null;pending=null;renderAll()});
+  const ct=document.getElementById('cont');if(ct)ct.onclick=()=>{const n=ops.length-cursor;ops=ops.slice(0,cursor);toast(`Continuing from here. ${n} later change${n>1?'s':''} discarded.`);renderAll()};
+  const lt=document.getElementById('latest');if(lt)lt.onclick=()=>{cursor=ops.length;replay();renderAll()};
+}
+function renderVitals(){
+  const d=C.filter(c=>c.st==='decided'||c.st==='exception').length,s=C.filter(c=>c.st==='suspected'||c.st==='observed').length,a=C.filter(c=>c.st==='anomaly').length;
+  document.getElementById('vitals').innerHTML=`<span class="d"><b>${d}</b>decided</span><span class="s"><b>${s}</b>open</span><span class="a"><b>${a}</b>anomal${a===1?'y':'ies'}</span>`;
+}
+let tt;function toast(m){const t=document.getElementById('toast');t.textContent=m;t.classList.add('show');clearTimeout(tt);tt=setTimeout(()=>t.classList.remove('show'),3200)}
+document.getElementById('lm').onclick=()=>setLens('meaning');document.getElementById('la').onclick=()=>setLens('appearance');
+function setLens(l){lens=l;document.getElementById('lm').setAttribute('aria-pressed',l==='meaning');document.getElementById('la').setAttribute('aria-pressed',l==='appearance');if(l==='appearance'){sel=null;pending=null;renderInsp()}}
+function renderAll(){renderInsp();renderHist();renderVitals()}
+replay();renderAll();requestAnimationFrame(frame);
+</script>

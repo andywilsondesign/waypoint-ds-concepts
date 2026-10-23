@@ -1,0 +1,351 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Waypoint System Review</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500&display=swap">
+<style>
+body{margin:0}[hidden]{display:none!important}img{max-width:100%}
+/* Layout: a quiet review desk. Status strip on top, a short ranked review list on the left, one proposal open at a time on the right. Built from artifacts designers already use: inventory walls, variant sheets, branch reviews, decision records. */
+:root{
+  --bg:#F4F5F7; --surface:#FFFFFF; --ink:#16181D; --ink-2:#5A606C; --ink-3:#8D93A0; --rule:#E1E3E8; --wash:#F0F1F4;
+  --live:#1C7C4A; --live-bg:#E3F3EA; --review:#9A5B00; --review-bg:#FCF0DB; --proposed:#3E56C9; --proposed-bg:#E8ECFB; --dep:#8B3A3A; --dep-bg:#F7E6E6; --focus:#3E56C9;
+  --f-ui:'Geist',system-ui,-apple-system,sans-serif; --f-mono:'Geist Mono',ui-monospace,monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#111317; --surface:#1A1D22; --ink:#ECEEF2; --ink-2:#A3A9B5; --ink-3:#6F7684; --rule:#2B2F37; --wash:#22252B;
+  --live:#5FD09A; --live-bg:#163326; --review:#F0B457; --review-bg:#3A2B12; --proposed:#9DAEFF; --proposed-bg:#232B52; --dep:#F09A9A; --dep-bg:#3A1F1F; --focus:#9DAEFF; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#111317; --surface:#1A1D22; --ink:#ECEEF2; --ink-2:#A3A9B5; --ink-3:#6F7684; --rule:#2B2F37; --wash:#22252B;
+  --live:#5FD09A; --live-bg:#163326; --review:#F0B457; --review-bg:#3A2B12; --proposed:#9DAEFF; --proposed-bg:#232B52; --dep:#F09A9A; --dep-bg:#3A1F1F; --focus:#9DAEFF; color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font:400 15px/1.5 var(--f-ui)}
+button,input,textarea{font:inherit;color:inherit}
+button{cursor:pointer}
+:focus-visible{outline:2px solid var(--focus);outline-offset:2px}
+.shell{max-width:1320px;margin:0 auto;padding-block:18px 48px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));display:grid;gap:16px}
+.top{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
+.top h1{margin:0;font:600 17px var(--f-ui);letter-spacing:-.01em}
+.top h1 span{color:var(--ink-3);font-weight:400}
+.tabs{display:flex;gap:2px;background:var(--wash);border-radius:8px;padding:3px}
+.tabs button{border:0;background:none;border-radius:6px;padding:6px 12px;font-size:14px;color:var(--ink-2)}
+.tabs button[aria-selected="true"]{background:var(--surface);color:var(--ink);box-shadow:0 1px 2px rgba(0,0,0,.08)}
+.tabs .cnt{font:500 11px var(--f-mono);margin-left:5px;color:var(--ink-3)}
+.health{display:grid;grid-template-columns:repeat(4,minmax(0,1fr)) minmax(0,1.6fr);gap:1px;background:var(--rule);border:1px solid var(--rule);border-radius:10px;overflow:hidden}
+.health > div{background:var(--surface);padding:12px 14px;display:grid;gap:2px}
+.health b{font:600 22px/1.1 var(--f-ui);font-variant-numeric:tabular-nums}
+.health span{font-size:13px;color:var(--ink-2)}
+.health .pill{justify-self:start}
+.health .drift{font-size:13.5px;color:var(--ink-2)}
+.health .drift b{font-size:13.5px;font-weight:600;color:var(--ink)}
+@media (max-width:860px){.health{grid-template-columns:repeat(2,minmax(0,1fr))}.health .drift{grid-column:1/-1}}
+.pill{display:inline-flex;align-items:center;gap:5px;font:500 11.5px var(--f-mono);padding:2px 8px;border-radius:999px;white-space:nowrap}
+.pill::before{content:"";width:6px;height:6px;border-radius:50%;background:currentColor}
+.p-live{color:var(--live);background:var(--live-bg)}.p-review{color:var(--review);background:var(--review-bg)}.p-proposed{color:var(--proposed);background:var(--proposed-bg)}.p-dep{color:var(--dep);background:var(--dep-bg)}.p-wait{color:var(--ink-2);background:var(--wash)}
+.cols{display:grid;grid-template-columns:300px minmax(0,1fr);gap:16px;align-items:start}
+@media (max-width:860px){.cols{grid-template-columns:minmax(0,1fr)}}
+.queue{display:grid;gap:8px}
+.qhead{display:flex;justify-content:space-between;align-items:baseline;font-size:13px;color:var(--ink-2);padding:0 2px}
+.qhead b{color:var(--ink);font-weight:600;font-size:14px}
+.qi{text-align:left;background:var(--surface);border:1px solid var(--rule);border-radius:10px;padding:12px 14px;display:grid;gap:6px}
+.qi:hover{border-color:var(--ink-3)}
+.qi[aria-current="true"]{border-color:var(--ink);box-shadow:0 0 0 1px var(--ink)}
+.qi .t{font-weight:600;font-size:14.5px;line-height:1.3}
+.qi .m{display:flex;gap:8px;align-items:center;flex-wrap:wrap;font-size:12.5px;color:var(--ink-2)}
+.qi.done{opacity:.6}
+.later{font-size:13px;color:var(--ink-2);padding:10px 4px;border-top:1px dashed var(--rule);margin-top:4px}
+.prop{background:var(--surface);border:1px solid var(--rule);border-radius:12px;display:grid;min-width:0}
+.ph{padding:18px 22px 14px;display:grid;gap:8px;border-bottom:1px solid var(--rule)}
+.ph .by{font-size:12.5px;color:var(--ink-2);display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.ph h2{margin:0;font:600 22px/1.25 var(--f-ui);letter-spacing:-.015em;text-wrap:balance}
+.ph p{margin:0;color:var(--ink-2);max-width:68ch}
+.seg{display:flex;gap:2px;background:var(--wash);border-radius:8px;padding:3px;justify-self:start;flex-wrap:wrap}
+.seg button{border:0;background:none;border-radius:6px;padding:5px 11px;font-size:13.5px;color:var(--ink-2)}
+.seg button[aria-pressed="true"]{background:var(--surface);color:var(--ink);box-shadow:0 1px 2px rgba(0,0,0,.08)}
+.pb{padding:18px 22px;display:grid;gap:18px}
+.canvas{background:var(--wash);border-radius:10px;padding:18px;overflow-x:auto}
+/* inventory wall */
+.wall{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:12px}
+.crop{background:#fff;border-radius:6px;padding:10px;display:grid;gap:8px;box-shadow:0 1px 2px rgba(0,0,0,.08);position:relative}
+.crop .cx{display:grid;gap:5px;padding:8px;border-radius:4px;background:#F6F7F9}
+.crop .ln{height:5px;border-radius:3px;background:#DFE3E8}
+.crop .f{height:16px;border:1px solid #CDD4DB;border-radius:3px;background:#fff}
+.crop small{font:500 11px var(--f-mono);color:#5A606C}
+.crop .note{position:absolute;top:-8px;right:-6px;font:600 10.5px var(--f-ui);background:#FFE58A;color:#3A3000;padding:3px 7px;border-radius:3px;transform:rotate(3deg);box-shadow:0 1px 2px rgba(0,0,0,.15)}
+.pbtn{all:unset;display:inline-flex;align-items:center;justify-content:center;color:#fff;font:600 12.5px/1 system-ui,sans-serif;padding:0 14px;height:32px;border-radius:6px}
+.groupcap{font:500 11.5px var(--f-mono);color:var(--ink-2);margin:2px 0 8px;display:flex;gap:8px;align-items:center}
+/* variant sheet */
+.sheet{display:grid;grid-template-columns:auto repeat(3,minmax(112px,1fr));gap:1px;background:#D9DDE3;border:1px dashed #8C7CF0;border-radius:8px;overflow:hidden;min-width:480px}
+.sheet > div{background:#fff;padding:12px;display:grid;place-items:center;font:500 11.5px var(--f-mono);color:#5A606C;min-height:58px}
+.sheet .h{background:#F6F7F9;color:#16181D;font-weight:500}
+.sheet .off{opacity:.35;text-decoration:line-through}
+.sheetcap{font:500 12px var(--f-mono);color:#7A6BE0;margin-bottom:8px}
+.props{display:flex;gap:10px;flex-wrap:wrap;margin-top:12px}
+.prop-t{display:flex;gap:6px;align-items:center;font-size:13px;background:var(--surface);border:1px solid var(--rule);border-radius:6px;padding:5px 10px}
+/* modes table */
+.modes{display:grid;grid-template-columns:minmax(150px,1.3fr) 1fr 1fr;gap:1px;background:#D9DDE3;border-radius:8px;overflow:hidden;min-width:440px}
+.modes > div{background:#fff;padding:10px 12px;font:500 12.5px var(--f-mono);color:#2A2E36;display:flex;gap:8px;align-items:center}
+.modes .h{background:#F6F7F9;color:#5A606C}
+.sw{width:16px;height:16px;border-radius:4px;flex:none;box-shadow:inset 0 0 0 1px rgba(0,0,0,.1)}
+/* screens */
+.screens{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:14px}
+.scr{background:#fff;border-radius:10px;padding:12px;display:grid;gap:7px;box-shadow:0 1px 3px rgba(0,0,0,.1);align-content:start}
+.scr .img{height:60px;border-radius:6px;background:linear-gradient(135deg,#A9CBD9,#DCE8D4)}
+.scr .ln{height:6px;border-radius:3px;background:#E3E7EC}
+.scr small{font:500 11px var(--f-mono);color:#5A606C}
+.facts{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:10px}
+.fact{border:1px solid var(--rule);border-radius:8px;padding:10px 12px;display:grid;gap:2px}
+.fact .k{font:500 11px var(--f-mono);color:var(--ink-3);text-transform:uppercase;letter-spacing:.05em}
+.fact b{font-weight:600;font-size:15px}
+.fact span{font-size:13px;color:var(--ink-2)}
+.who{display:inline-flex;align-items:center;gap:4px}
+.av{width:20px;height:20px;border-radius:50%;display:inline-grid;place-items:center;font:600 10px var(--f-ui);color:#fff;flex:none}
+.guide{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+@media (max-width:600px){.guide{grid-template-columns:1fr}}
+.guide div{border-radius:8px;padding:12px 14px;font-size:14px}
+.guide .do{background:var(--live-bg)}.guide .dont{background:var(--dep-bg)}
+.guide b{display:block;font:500 11.5px var(--f-mono);text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px}
+.guide .do b{color:var(--live)}.guide .dont b{color:var(--dep)}
+.aiword{font-size:12.5px;color:var(--ink-3)}
+.decide{border-top:1px solid var(--rule);padding:16px 22px 20px;display:grid;gap:12px;background:var(--surface);border-radius:0 0 12px 12px}
+.decide .row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.b1{background:var(--ink);color:var(--surface);border:0;border-radius:8px;padding:9px 16px;font-weight:600;font-size:14px}
+.b2{background:var(--surface);border:1px solid var(--rule);border-radius:8px;padding:9px 14px;font-size:14px}
+.b2:hover{border-color:var(--ink-3)}
+.why{display:grid;gap:6px}
+.why label{font-size:13px;color:var(--ink-2)}
+.why textarea{border:1px solid var(--rule);border-radius:8px;padding:9px 11px;background:var(--bg);min-height:62px;resize:vertical}
+.assign{display:flex;gap:8px;flex-wrap:wrap}
+.assign button{display:flex;gap:8px;align-items:center;background:var(--surface);border:1px solid var(--rule);border-radius:8px;padding:7px 12px;font-size:13.5px;text-align:left}
+.assign button:hover{border-color:var(--ink-3)}
+.assign small{display:block;color:var(--ink-3);font-size:12px}
+.record{border:1px solid var(--rule);border-radius:10px;padding:14px 16px;display:grid;gap:6px;background:var(--surface)}
+.record .rh{display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;align-items:center}
+.record .rh b{font-size:15px}
+.record p{margin:0;font-size:14px;color:var(--ink-2)}
+.record .meta{font:400 12px var(--f-mono);color:var(--ink-3)}
+.lib{display:grid;gap:18px}
+.libsec{display:grid;gap:8px}
+.libsec h3{margin:0;font:500 12px var(--f-mono);text-transform:uppercase;letter-spacing:.06em;color:var(--ink-3)}
+.libgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:10px}
+.libitem{background:var(--surface);border:1px solid var(--rule);border-radius:10px;padding:12px;display:grid;gap:8px}
+.libitem .sp{height:40px;display:flex;align-items:center;gap:6px;background:var(--wash);border-radius:6px;padding:0 10px}
+.libitem .nm{display:flex;justify-content:space-between;gap:8px;align-items:center;font-weight:600;font-size:14px}
+.libitem small{color:var(--ink-2);font-size:12.5px}
+.libitem.changed{border-color:var(--proposed);box-shadow:0 0 0 1px var(--proposed)}
+.empty{background:var(--surface);border:1px dashed var(--rule);border-radius:12px;padding:40px 24px;text-align:center;display:grid;gap:8px;justify-items:center}
+.empty h2{margin:0;font:600 20px var(--f-ui)}
+.toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom,0px));transform:translate(-50%,30px);opacity:0;background:var(--ink);color:var(--surface);padding:10px 14px;border-radius:8px;font-size:14px;transition:all .3s;display:flex;gap:12px;align-items:center;max-width:calc(100% - 32px);z-index:10}
+.toast.show{opacity:1;transform:translate(-50%,0)}
+.toast button{background:none;border:1px solid currentColor;color:inherit;border-radius:6px;padding:3px 9px;font-size:13px}
+.toast:not(.show){visibility:hidden;transition:all .3s,visibility 0s .3s}
+@media (prefers-reduced-motion: reduce){.toast{transition:none}}
+</style>
+
+<div class="shell">
+  <div class="top">
+    <h1>Waypoint design system <span>· review</span></h1>
+    <div class="tabs" role="tablist">
+      <button role="tab" id="t-review" aria-selected="true">Review<span class="cnt" id="c-review"></span></button>
+      <button role="tab" id="t-lib" aria-selected="false">Library</button>
+      <button role="tab" id="t-dec" aria-selected="false">Decisions<span class="cnt" id="c-dec"></span></button>
+    </div>
+  </div>
+  <section class="health" id="health" aria-label="System status"></section>
+  <div id="view"></div>
+</div>
+<div class="toast" id="toast" role="status"><span id="tmsg"></span><button id="tundo">Undo</button></div>
+
+<script>
+const BLUE='#2563EB',BLUE2='#2460E0',GREEN='#15803D',RED='#DC2626',KESTREL='#0F766E';
+const pbtn=(c,t,r=6,h=32)=>`<span class="pbtn" style="background:${c};border-radius:${r}px;height:${h}px">${t}</span>`;
+const PEOPLE={priya:['Priya N.','Checkout design lead','#B4536A'],tom:['Tom A.','Business portal designer','#3B7A6E'],jo:['Jo M.','Design system lead (you)','#4A57B5'],sam:['Sam K.','Front-end, Checkout','#8A6A2B']};
+const av=k=>`<span class="av" style="background:${PEOPLE[k][2]}">${PEOPLE[k][0][0]}</span>`;
+
+// Proposals are drafted by the system from the code and library analytics, ranked by impact. Nothing is live until a person decides.
+const P=[
+ {id:'primary',rank:1,title:'Make the three blue buttons one component: Primary action',lede:'Found 3 versions of the same filled blue button. Proposing one component with a Large size, so Search keeps its height on purpose.',
+  status:'review',impact:'991 instances · 143 screens · 3 teams',
+  facts:[['Instances','991','in code, 143 screens'],['Figma','41 detaches','Checkout team, last 90 days'],['Differs','Radius, height','colour is the same to the eye'],['Owners','3 teams','Trip, Checkout, Search']],
+  views:['Inventory','Proposed component','On screens'],
+  guide:['Use for the one action that completes the task on a screen.','Don\'t use more than one per screen. Don\'t use for destructive actions.'],
+  opts:[{k:'radius',label:'Fix Checkout radius to 6px',on:true},{k:'large',label:'Add Size = Large (Search)',on:true},{k:'loading',label:'Add a Loading state',on:false}]},
+ {id:'business',rank:2,title:'Let Business portal follow Primary action through the Partner theme',lede:'Business “Approve” is identical to Primary action today. Proposing it uses the same component, with its colour from the Partner theme mode, so partners can rebrand without touching the consumer app.',
+  status:'review',impact:'203 instances · 40 screens · 1 team',
+  facts:[['Instances','203','Business portal'],['Looks','Identical','to Primary action today'],['Partners','2 contracts','mention brand colour on actions'],['Owner','Tom A.','Business portal']],
+  views:['Inventory','Theme modes','On screens'],
+  guide:['Business uses Primary action; colour comes from action/primary in the Partner mode.','Don\'t hard-code consumer blue in Business screens.'],opts:[]},
+ {id:'booknow',rank:3,title:'Record “Book now” as an approved exception',lede:'A larger green button on the last checkout step. The source mentions an experiment that won. Proposing to document it as a deliberate exception so tidy-ups leave it alone.',
+  status:'review',impact:'9 instances · 1 screen · Checkout',
+  facts:[['Instances','9','Checkout review step'],['Origin','Experiment','May 2023, “won, keep”'],['Risk','Accidental fix','if treated as drift'],['Owner','Priya N.','Checkout']],
+  views:['Inventory','On screens'],
+  guide:['Only on the final booking confirmation, once per flow.','Don\'t copy this style to other steps or products.'],opts:[]},
+];
+const LATER=['Red is used for both errors and Deal badges (209 uses)','3 date pickers in Forms','Card spacing varies by 4px on 12 screens'];
+
+const S={tab:'review',open:'primary',view:{},opts:{},decisions:[],mode:'decide',draftWhy:''};
+P.forEach(p=>{S.view[p.id]=p.views[0];S.opts[p.id]=Object.fromEntries(p.opts.map(o=>[o.k,o.on]))});
+const dec=id=>S.decisions.find(d=>d.id===id&&!d.undone);
+
+// ---------- health strip ----------
+function renderHealth(){
+  const approved=S.decisions.filter(d=>!d.undone&&d.kind!=='ask').length, waiting=S.decisions.filter(d=>!d.undone&&d.kind==='ask').length;
+  const open=P.filter(p=>!dec(p.id)).length;
+  document.getElementById('health').innerHTML=`
+   <div><b>${38+approved}</b><span class="pill p-live">Live</span></div>
+   <div><b>${open}</b><span class="pill p-review">Needs review</span></div>
+   <div><b>${waiting}</b><span class="pill p-wait">Waiting on others</span></div>
+   <div><b>4</b><span class="pill p-dep">Deprecated</span></div>
+   <div class="drift"><b>Drift since last review:</b> 63 detached instances, 41 of them the Checkout button. 2 new one-off colours in Search.</div>`;
+  document.getElementById('c-review').textContent=open;
+  document.getElementById('c-dec').textContent=S.decisions.filter(d=>!d.undone).length||'';
+}
+
+// ---------- review ----------
+function renderReview(){
+  const v=document.getElementById('view');
+  const q=P.map(p=>{const d=dec(p.id);const st=d?(d.kind==='ask'?'<span class="pill p-wait">Waiting on '+PEOPLE[d.who][0]+'</span>':d.kind==='reject'?'<span class="pill p-dep">Not adopted</span>':'<span class="pill p-live">Decided</span>'):'<span class="pill p-review">Needs review</span>';
+    return `<button class="qi ${d&&d.kind!=='ask'?'done':''}" data-p="${p.id}" aria-current="${S.open===p.id}"><span class="t">${p.title}</span><span class="m">${st}<span>${p.impact}</span></span></button>`}).join('');
+  const p=P.find(x=>x.id===S.open);
+  v.innerHTML=`<div class="cols">
+    <nav class="queue" aria-label="Review list"><div class="qhead"><b>This week</b><span>ranked by impact</span></div>${q}
+      <div class="later"><b style="color:var(--ink);font-weight:600">Not this week</b><br>${LATER.join('<br>')}</div></nav>
+    ${p?proposalHTML(p):''}</div>`;
+  v.querySelectorAll('.qi').forEach(b=>b.onclick=()=>{S.open=b.dataset.p;S.mode='decide';render()});
+  wireProposal(p);
+}
+function proposalHTML(p){
+  const d=dec(p.id);
+  return `<article class="prop" aria-live="polite">
+   <div class="ph"><div class="by">${av('jo')}<span>Drafted by the system from code and Figma usage · for review by you</span><span class="pill ${d?'p-live':'p-proposed'}">${d?'Decided':'Proposed'}</span></div>
+     <h2>${p.title}</h2><p>${p.lede}</p>
+     <div class="seg" role="group" aria-label="Evidence view">${p.views.map(x=>`<button aria-pressed="${S.view[p.id]===x}" data-v="${x}">${x}</button>`).join('')}</div></div>
+   <div class="pb">
+     <div class="canvas">${evidence(p)}</div>
+     <div class="facts">${p.facts.map(([k,b,s])=>`<div class="fact"><span class="k">${k}</span><b>${b}</b><span>${s}</span></div>`).join('')}</div>
+     <div><div class="guide"><div class="do"><b>Use when</b>${p.guide[0]}</div><div class="dont"><b>Don't</b>${p.guide[1]}</div></div><div class="aiword" style="margin-top:6px">Usage guidance drafted from where it appears today. Edit it when you decide.</div></div>
+   </div>
+   <div class="decide">${d?recordHTML(d,true):decideHTML(p)}</div></article>`;
+}
+function evidence(p){
+  const view=S.view[p.id];const o=S.opts[p.id];
+  if(p.id==='primary'){
+    if(view==='Inventory') return `<div class="groupcap">As found in the product · grouped by the system, check the grouping</div><div class="wall">
+      ${[['Trip page','Continue',BLUE,6,32,'612 in code'],['Account','Save changes',BLUE,6,32,'incl. above'],['Checkout','Pay £412',BLUE2,3,32,'238 in code','sharper corners'],['Checkout','Continue to payment',BLUE2,3,32,'incl. above'],['Search','Search',BLUE,6,40,'141 in code','taller'],['Search filters','Show 84 trips',BLUE,6,40,'incl. above']].map(([s,t,c,r,h,n,note])=>
+      `<div class="crop">${note?`<span class="note">${note}</span>`:''}<div class="cx"><div class="ln" style="width:60%"></div><div class="f"></div>${pbtn(c,t,r,h)}</div><small>${s} · ${n}</small></div>`).join('')}</div>`;
+    if(view==='Proposed component') return `<div class="sheetcap">◇ Primary action · component set (proposed)</div>
+      <div class="sheet"><div class="h"></div><div class="h">Default</div><div class="h">Hover</div><div class="h">Disabled</div>
+      <div class="h">Size = Default</div><div>${pbtn(BLUE,'Continue',o.radius?6:3)}</div><div>${pbtn('#1D4FD7','Continue',o.radius?6:3)}</div><div>${pbtn('#A7BEF5','Continue',o.radius?6:3)}</div>
+      <div class="h ${o.large?'':'off'}">Size = Large</div>${o.large?`<div>${pbtn(BLUE,'Search',6,40)}</div><div>${pbtn('#1D4FD7','Search',6,40)}</div><div>${pbtn('#A7BEF5','Search',6,40)}</div>`:'<div class="off">removed</div><div class="off">—</div><div class="off">—</div>'}
+      ${o.loading?`<div class="h">State = Loading</div><div>${pbtn(BLUE,'• • •',6)}</div><div>—</div><div>—</div>`:''}</div>
+      <div class="props">${p.opts.map(x=>`<label class="prop-t"><input type="checkbox" id="opt-${x.k}" data-o="${x.k}" ${o[x.k]?'checked':''}> ${x.label}</label>`).join('')}</div>`;
+    return `<div class="groupcap">After the change · Checkout corners match, Search keeps its size as a variant</div><div class="screens">
+      ${[['Trip page','Continue',6,32],['Checkout','Pay £412',o.radius?6:3,32],['Search','Search',6,o.large?40:32]].map(([s,t,r,h])=>`<div class="scr"><div class="img"></div><div class="ln" style="width:70%"></div><div class="ln" style="width:45%"></div>${pbtn(BLUE,t,r,h)}<small>${s}</small></div>`).join('')}</div>`;
+  }
+  if(p.id==='business'){
+    if(view==='Inventory') return `<div class="groupcap">Identical today · the system can't tell if that's on purpose</div><div class="wall">
+      ${[['Consumer · Trip','Continue'],['Business · Expenses','Approve £2,140'],['Business · Trips','Approve trip'],['Consumer · Account','Save changes']].map(([s,t])=>`<div class="crop"><div class="cx"><div class="ln" style="width:60%;${s.startsWith('Business')?'background:#334155':''}"></div><div class="ln"></div>${pbtn(BLUE,t)}</div><small>${s}</small></div>`).join('')}</div>`;
+    if(view==='Theme modes') return `<div class="sheetcap">action/primary · variable modes (proposed)</div><div class="modes">
+      <div class="h">Variable</div><div class="h">Waypoint</div><div class="h">Partner</div>
+      <div>action/primary</div><div><span class="sw" style="background:${BLUE}"></span>blue/600</div><div><span class="sw" style="background:${KESTREL}"></span>partner.brand</div>
+      <div>action/primary-hover</div><div><span class="sw" style="background:#1D4FD7"></span>blue/700</div><div><span class="sw" style="background:#0B5D56"></span>partner.brand-dark</div>
+      <div>action/on-primary</div><div><span class="sw" style="background:#fff"></span>white</div><div><span class="sw" style="background:#fff"></span>white</div></div>
+      <div class="aiword" style="margin-top:8px">Partner column shows Kestrel Travel, a fictional partner, as a preview.</div>`;
+    return `<div class="groupcap">Same component, two themes</div><div class="screens">
+      <div class="scr"><div class="img"></div><div class="ln" style="width:60%"></div>${pbtn(BLUE,'Continue')}<small>Waypoint app</small></div>
+      <div class="scr"><div class="ln" style="background:#334155"></div><div class="ln" style="width:80%"></div><div class="ln" style="width:65%"></div>${pbtn(KESTREL,'Approve £2,140')}<small>Business · Kestrel Travel</small></div></div>`;
+  }
+  if(view==='Inventory') return `<div class="groupcap">The only place this appears</div><div class="wall">
+    <div class="crop"><span class="note">exp: won, keep</span><div class="cx"><div class="ln" style="width:60%"></div><div class="ln" style="width:40%"></div>${pbtn(GREEN,'Book now',10,42)}</div><small>Checkout review · 9</small></div>
+    <div class="crop"><div class="cx"><div class="ln" style="width:60%"></div><div class="f"></div>${pbtn(BLUE2,'Pay £412',3)}</div><small>Checkout payment · for comparison</small></div></div>`;
+  return `<div class="screens"><div class="scr"><div class="img"></div><div class="ln" style="width:55%"></div><div class="ln" style="width:35%"></div>${pbtn(GREEN,'Book now',10,42)}<small>Checkout review step</small></div></div>`;
+}
+function decideHTML(p){
+  if(S.mode==='ask') return `<div style="font-weight:600">Who should weigh in?</div><div class="assign">${(p.id==='business'?['tom','priya']:['priya','sam']).map(k=>`<button data-who="${k}">${av(k)}<span>${PEOPLE[k][0]}<small>${PEOPLE[k][1]}</small></span></button>`).join('')}</div><div class="row"><button class="b2" id="cancel">Back</button></div>`;
+  return `<div class="why"><label for="why">Why (saved with the decision, so nobody has to ask later)</label><textarea id="why" placeholder="e.g. Agreed in crit on 24 Oct. Search height is intentional for touch.">${S.draftWhy}</textarea></div>
+   <div class="row"><button class="b1" data-k="approve">${p.id==='booknow'?'Approve as exception':'Approve'}</button>${p.opts.length?'<button class="b2" data-k="changes">Approve with my changes</button>':''}<button class="b2" data-k="ask">Ask someone</button><button class="b2" data-k="reject">Don't adopt</button></div>
+   <div class="aiword">Approving updates the library status and records your reasoning. It doesn't change code or Figma until the owners merge it.</div>`;
+}
+function recordHTML(d,inline){
+  const p=P.find(x=>x.id===d.id);
+  const label={approve:'Approved',changes:'Approved with changes',ask:'Waiting on '+(d.who?PEOPLE[d.who][0]:''),reject:'Not adopted'}[d.kind];
+  return `<div class="record"><div class="rh"><b>${label}</b><span class="pill ${d.kind==='reject'?'p-dep':d.kind==='ask'?'p-wait':'p-live'}">${d.kind==='ask'?'Open':'Decided'}</span></div>
+   ${inline?'':`<div style="font-weight:600">${p.title}</div>`}
+   <p>${d.why||'<i>No reason given.</i>'}</p>${d.changes?`<p>Changes: ${d.changes}</p>`:''}
+   <div class="meta">${d.kind==='ask'?'Asked':'Decided'} by Jo M. · 24 Oct 2026 · evidence: ${p.impact}</div>
+   <div class="row" style="margin-top:4px"><button class="b2" data-reopen="${d.id}">${d.kind==='ask'?'Withdraw question':'Reopen'}</button>${d.kind==='ask'?`<button class="b2" data-reply="${d.id}">Simulate ${PEOPLE[d.who][0]}'s reply</button>`:''}</div></div>`;
+}
+function wireProposal(p){
+  const v=document.getElementById('view');if(!p)return;
+  v.querySelectorAll('[data-v]').forEach(b=>b.onclick=()=>{S.view[p.id]=b.dataset.v;render()});
+  v.querySelectorAll('[data-o]').forEach(c=>c.onchange=()=>{S.opts[p.id][c.dataset.o]=c.checked;render()});
+  const w=document.getElementById('why');if(w)w.oninput=()=>S.draftWhy=w.value;
+  v.querySelectorAll('[data-k]').forEach(b=>b.onclick=()=>decide(p,b.dataset.k));
+  v.querySelectorAll('[data-who]').forEach(b=>b.onclick=()=>{record(p,'ask',b.dataset.who)});
+  const c=document.getElementById('cancel');if(c)c.onclick=()=>{S.mode='decide';render()};
+  wireRecords(v);
+}
+function wireRecords(root){
+  root.querySelectorAll('[data-reopen]').forEach(b=>b.onclick=()=>{const d=dec(b.dataset.reopen);d.undone=true;S.open=d.id;S.tab='review';S.mode='decide';S.draftWhy=d.why||'';toast(d.kind==='ask'?'Question withdrawn.':'Reopened. Library status is back to Needs review.',()=>{d.undone=false;render()});render()});
+  root.querySelectorAll('[data-reply]').forEach(b=>b.onclick=()=>{const d=dec(b.dataset.reply);d.undone=true;S.open=d.id;S.mode='decide';S.tab='review';
+    S.draftWhy=d.id==='booknow'?`${PEOPLE[d.who][0]}: yes, it won the experiment by a clear margin and the team wants it kept.`:`${PEOPLE[d.who][0]}: agree, as long as partners can still set the colour.`;render();toast(`${PEOPLE[d.who][0]} replied. Their answer is in the reason box; you still make the call.`)});
+}
+function decide(p,k){
+  if(k==='ask'){S.mode='ask';render();return}
+  if(k==='changes'){const o=S.opts[p.id];const ch=p.opts.map(x=>(o[x.k]?'':'without ')+x.label.toLowerCase().replace(/^add /,'')).join('; ');record(p,'changes',null,ch);return}
+  record(p,k);
+}
+function record(p,kind,who,changes){
+  const d={id:p.id,kind,who,changes,why:S.draftWhy.trim(),undone:false};
+  S.decisions=S.decisions.filter(x=>!(x.id===p.id&&!x.undone));S.decisions.push(d);S.draftWhy='';S.mode='decide';
+  const next=P.find(x=>!dec(x.id));
+  const msg={approve:p.id==='booknow'?'Recorded as an approved exception.':'Approved. Library updated: Live.',changes:'Approved with your changes. Library updated: Live.',ask:`Sent to ${who&&PEOPLE[who][0]}. It stays open until they reply.`,reject:'Not adopted. The finding stays visible as known drift.'}[kind];
+  toast(msg,()=>{d.undone=true;S.open=p.id;render()});
+  render();
+}
+
+// ---------- library ----------
+function renderLib(){
+  const d1=dec('primary'),d2=dec('business'),d3=dec('booknow');
+  const st=(d,live,wait)=>!d?['p-review','Needs review']:d.kind==='ask'?['p-wait','Waiting']:d.kind==='reject'?['p-dep','Not adopted']:[ 'p-live',live];
+  const item=(sp,nm,pill,meta,changed)=>`<div class="libitem ${changed?'changed':''}"><div class="sp">${sp}</div><div class="nm"><span>${nm}</span><span class="pill ${pill[0]}">${pill[1]}</span></div><small>${meta}</small></div>`;
+  const pA=st(d1,'Live');
+  document.getElementById('view').innerHTML=`<div class="lib">
+   <div class="libsec"><h3>Actions</h3><div class="libgrid">
+     ${item(pbtn(BLUE,'Continue',6,28)+(d1&&d1.kind!=='reject'&&S.opts.primary.large?pbtn(BLUE,'Search',6,34):''),d1&&d1.kind!=='reject'?'Primary action':'Filled blue button ×3',pA,d1&&d1.kind!=='reject'?'991 instances · 1 component'+(S.opts.primary.large?' · 2 sizes':''):'3 versions in use',!!d1)}
+     ${item(`<span class="pbtn" style="background:#fff;color:${BLUE};box-shadow:inset 0 0 0 1.5px ${BLUE};height:28px">Edit</span>`,'Secondary action',['p-live','Live'],'401 instances')}
+     ${item(pbtn(GREEN,'Book now',10,30),'Book now',d3?st(d3,'Exception'):['p-review','Needs review'],d3&&d3.kind==='approve'?'Approved exception · Checkout only':'9 instances · undocumented',!!d3)}
+     ${item(`<span class="pbtn" style="background:#94A3B8;height:28px">Old CTA</span>`,'Legacy CTA',['p-dep','Deprecated'],'12 left to migrate')}
+   </div></div>
+   <div class="libsec"><h3>Themes</h3><div class="libgrid">
+     ${item(`<span class="sw" style="background:${BLUE}"></span><span class="sw" style="background:#1E293B"></span>`,'Waypoint',['p-live','Live'],'consumer app')}
+     ${item(`<span class="sw" style="background:${d2&&d2.kind!=='reject'&&d2.kind!=='ask'?KESTREL:BLUE}"></span><span class="sw" style="background:#334155"></span>`,'Partner',st(d2,'Live'),d2&&d2.kind!=='reject'&&d2.kind!=='ask'?'action/primary follows partner brand':'actions hard-coded to consumer blue',!!d2)}
+   </div></div>
+   <div class="libsec"><h3>Colour</h3><div class="libgrid">
+     ${item(`<span class="sw" style="background:${RED}"></span>`,'Red 600',['p-review','Needs review'],'Errors and Deal badges · next week')}
+     ${item(`<span class="sw" style="background:#6B7280"></span><span class="sw" style="background:#9CA3AF"></span>`,'Text greys',['p-live','Live'],'14 values → 3 roles, decided 3 Oct')}
+   </div></div></div>`;
+}
+
+// ---------- decisions ----------
+function renderDec(){
+  const list=S.decisions.filter(d=>!d.undone).slice().reverse();
+  const v=document.getElementById('view');
+  v.innerHTML=list.length?`<div style="display:grid;gap:10px;max-width:760px">${list.map(d=>recordHTML(d,false)).join('')}</div>`
+   :`<div class="empty"><h2>No decisions yet this week</h2><p style="margin:0;color:var(--ink-2);max-width:48ch">Each decision you make is kept here with its reason and evidence, so the next person can see why, and you can reopen it.</p><button class="b1" id="goR">Go to review</button></div>`;
+  wireRecords(v);const g=document.getElementById('goR');if(g)g.onclick=()=>{S.tab='review';render()};
+}
+
+// ---------- shell ----------
+let tt,undoFn;
+function toast(m,fn){const t=document.getElementById('toast');document.getElementById('tmsg').textContent=m;undoFn=fn;document.getElementById('tundo').hidden=!fn;t.classList.add('show');clearTimeout(tt);tt=setTimeout(()=>t.classList.remove('show'),4200)}
+document.getElementById('tundo').onclick=()=>{if(undoFn)undoFn();document.getElementById('toast').classList.remove('show');undoFn=null};
+['review','lib','dec'].forEach(k=>document.getElementById('t-'+k).onclick=()=>{S.tab=k;render()});
+function render(){
+  ['review','lib','dec'].forEach(k=>document.getElementById('t-'+k).setAttribute('aria-selected',S.tab===k));
+  renderHealth();({review:renderReview,lib:renderLib,dec:renderDec})[S.tab]();
+}
+render();
+</script>

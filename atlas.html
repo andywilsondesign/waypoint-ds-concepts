@@ -1,0 +1,575 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Waypoint System Atlas</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans+Condensed:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+body{margin:0}[hidden]{display:none!important}img{max-width:100%}
+/* Layout: full-bleed survey map. Legend card floats top-left, evidence drawer slides in from the right, survey log runs along the bottom edge. */
+:root{
+  --sea:#DCE6EA; --sea-line:#CBD8DE; --land:#F8FAF7; --coast:#7F98A4; --contour:#C3D3D0;
+  --ink:#16232C; --ink-2:#4B5D68; --ink-3:#7A8C96;
+  --decided:#1F7566; --decided-bg:#E1F0EB; --suspect:#A86D08; --suspect-bg:#FAF0DA;
+  --fog:#FFFFFF; --panel:#FFFFFF; --line:#D3DEE2; --focus:#1F5FBF;
+  --f-label:'IBM Plex Sans Condensed','Arial Narrow',system-ui,sans-serif;
+  --f-body:'IBM Plex Sans',system-ui,-apple-system,sans-serif;
+  --f-mono:'IBM Plex Mono',ui-monospace,Menlo,monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --sea:#0D1920; --sea-line:#15252E; --land:#1A2A32; --coast:#4E6976; --contour:#2A3E47;
+  --ink:#E3EBEE; --ink-2:#A2B4BC; --ink-3:#71858F;
+  --decided:#5EC4A9; --decided-bg:#163630; --suspect:#E6B252; --suspect-bg:#33280F;
+  --fog:#56707C; --panel:#13222A; --line:#2A3C45; --focus:#7FB0FF; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --sea:#0D1920; --sea-line:#15252E; --land:#1A2A32; --coast:#4E6976; --contour:#2A3E47;
+  --ink:#E3EBEE; --ink-2:#A2B4BC; --ink-3:#71858F;
+  --decided:#5EC4A9; --decided-bg:#163630; --suspect:#E6B252; --suspect-bg:#33280F;
+  --fog:#56707C; --panel:#13222A; --line:#2A3C45; --focus:#7FB0FF; color-scheme:dark}
+html,body{height:100%}
+body{background:var(--sea);color:var(--ink);font-family:var(--f-body);overflow:hidden}
+*{box-sizing:border-box}
+button{font:inherit;color:inherit;cursor:pointer}
+:focus-visible{outline:2px solid var(--focus);outline-offset:2px}
+.app{position:relative;height:100%;padding-left:max(0px,env(safe-area-inset-left,0px));padding-right:max(0px,env(safe-area-inset-right,0px))}
+svg#map{position:absolute;inset:0;width:100%;height:100%;display:block}
+#world{transition:transform .9s cubic-bezier(.6,.05,.25,1);transform-origin:0 0}
+@media (prefers-reduced-motion: reduce){#world,.fog,.terr *{transition:none!important}.pulse{animation:none!important}}
+
+/* map marks */
+.gridline{stroke:var(--sea-line);stroke-width:1}
+.coord{font:400 10px var(--f-mono);fill:var(--ink-3)}
+.contour{fill:none;stroke:var(--contour);stroke-width:1}
+.landmass{fill:var(--land);stroke:var(--coast);stroke-width:1.4}
+.terr{cursor:pointer}
+.terr:hover .landmass{stroke:var(--ink)}
+.hatch{fill:url(#hatch);pointer-events:none;transition:opacity .8s}
+.fog{fill:var(--fog);filter:url(#fogf);transition:opacity 1.2s ease;pointer-events:none}
+.tname{font:600 15px var(--f-label);letter-spacing:.14em;text-transform:uppercase;fill:var(--ink);text-anchor:middle;pointer-events:none;transition:opacity .5s}
+.tsub{font:400 11px var(--f-mono);fill:var(--ink-2);text-anchor:middle;pointer-events:none;transition:opacity .5s}
+.region{font:500 12px var(--f-label);letter-spacing:.42em;fill:var(--ink-3);text-anchor:middle;pointer-events:none}
+.road{fill:none;stroke-width:2;transition:stroke .6s,opacity .6s}
+.road.decided{stroke:var(--decided)}
+.road.suspect{stroke:var(--suspect);stroke-dasharray:5 6;opacity:.75}
+.road.preview{stroke:var(--decided);stroke-dasharray:8 6;animation:march 1s linear infinite;stroke-width:3}
+.roadlabel{font:500 9px var(--f-mono);fill:var(--ink-2);text-anchor:middle}
+@keyframes march{to{stroke-dashoffset:-28}}
+.beacon circle.ring{fill:none;stroke:var(--suspect);stroke-width:2}
+.beacon circle.dot{fill:var(--suspect)}
+.pulse{animation:pulse 2.2s ease-out infinite;transform-box:fill-box;transform-origin:center}
+@keyframes pulse{0%{transform:scale(.6);opacity:1}100%{transform:scale(2.2);opacity:0}}
+.zoomed .tname,.zoomed .tsub,.zoomed .beacon,.zoomed .region{opacity:0}
+.zoomed .terr.current .tname{opacity:0}
+.settle{opacity:0;pointer-events:none;transition:opacity .6s .3s}
+.zoomed .terr.current .settle{opacity:1;pointer-events:auto}
+.zoomed .terr:not(.current){opacity:.45}
+.spec{cursor:pointer}
+.spec:hover .halo{stroke:var(--ink);stroke-width:.6}
+.halo{fill:var(--land);stroke:var(--line);stroke-width:.4}
+.slabel{font:600 5.6px var(--f-label);letter-spacing:.06em;fill:var(--ink);text-anchor:middle;text-transform:uppercase}
+.scount{font:400 4.4px var(--f-mono);fill:var(--ink-2);text-anchor:middle}
+.btxt{font:600 5.4px var(--f-body);text-anchor:middle;dominant-baseline:central;pointer-events:none}
+.bound{fill:none;stroke-width:.9}
+.bound.suspect{stroke:var(--suspect);stroke-dasharray:3 2.4}
+.bound.decided{stroke:var(--decided);stroke-width:1.2}
+.flag{font:600 6px var(--f-label);letter-spacing:.08em;text-transform:uppercase}
+.flag.decided{fill:var(--decided)}.flag.suspect{fill:var(--suspect)}
+.pin circle{fill:var(--suspect)}.pin text{font:700 6px var(--f-body);fill:var(--panel);text-anchor:middle;dominant-baseline:central}
+.pin.done circle{fill:var(--decided)}
+
+/* legend card */
+.legend{position:absolute;top:calc(16px + env(safe-area-inset-top,0px));left:max(16px,env(safe-area-inset-left,0px));width:min(340px,calc(100% - 32px));background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:16px 18px;display:grid;gap:12px;box-shadow:0 8px 24px -16px rgba(10,30,40,.45);z-index:3}
+.legend h1{margin:0;font:600 13px var(--f-label);letter-spacing:.16em;text-transform:uppercase}
+.legend .sub{margin:0;font-size:12.5px;color:var(--ink-2);line-height:1.45}
+.crumb{display:flex;gap:6px;align-items:center;font:500 12px var(--f-mono);color:var(--ink-2);flex-wrap:wrap}
+.crumb button{background:none;border:0;padding:0;text-decoration:underline;text-underline-offset:3px;color:var(--ink)}
+.scale{display:flex;height:10px;border-radius:2px;overflow:hidden;border:1px solid var(--line)}
+.scale span{display:block;height:100%;transition:flex-grow .8s}
+.keys{display:flex;flex-wrap:wrap;gap:4px 14px;font-size:12px;color:var(--ink-2)}
+.keys i{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:6px;vertical-align:-1px}
+.k-dec{background:var(--decided)}.k-sus{background:repeating-linear-gradient(45deg,var(--suspect) 0 2px,transparent 2px 4px);border:1px solid var(--suspect)}.k-fog{background:var(--sea-line);border:1px dashed var(--ink-3)}
+.attn{display:grid;gap:6px;margin:0;padding:0;list-style:none}
+.attn button{width:100%;text-align:left;background:var(--suspect-bg);border:1px solid transparent;border-radius:4px;padding:8px 10px;display:grid;grid-template-columns:auto 1fr;gap:2px 10px;align-items:start}
+.attn button:hover{border-color:var(--suspect)}
+.attn .n{grid-row:span 2;width:20px;height:20px;border-radius:50%;background:var(--suspect);color:var(--panel);font:700 11px var(--f-body);display:grid;place-items:center}
+.attn b{font-weight:600;font-size:13px}
+.attn small{font-size:11.5px;color:var(--ink-2)}
+.attn .ok{background:var(--decided-bg);font-size:12.5px;padding:9px 10px;border-radius:4px;color:var(--ink)}
+.eyebrow{font:500 10.5px var(--f-mono);letter-spacing:.08em;text-transform:uppercase;color:var(--ink-3)}
+
+/* drawer */
+.drawer{position:absolute;top:0;right:0;bottom:0;width:min(440px,100%);background:var(--panel);border-left:1px solid var(--line);transform:translateX(102%);transition:transform .45s cubic-bezier(.4,.1,.2,1);z-index:5;display:flex;flex-direction:column;padding-top:env(safe-area-inset-top,0px);padding-right:env(safe-area-inset-right,0px)}
+.drawer.open{transform:none;box-shadow:-20px 0 40px -30px rgba(0,0,0,.5)}
+.dhead{display:flex;justify-content:space-between;align-items:center;padding:14px 20px;border-bottom:1px solid var(--line)}
+.dbody{overflow:auto;padding:18px 20px 120px;display:grid;gap:18px;align-content:start}
+.close{background:none;border:1px solid var(--line);border-radius:4px;padding:4px 10px;font-size:12px}
+.dbody h2{margin:0;font:600 21px/1.25 var(--f-label);text-wrap:balance}
+.prov{display:flex;gap:6px;flex-wrap:wrap}
+.tag{font:500 10.5px var(--f-mono);letter-spacing:.05em;text-transform:uppercase;padding:3px 7px;border-radius:3px;border:1px solid var(--line);color:var(--ink-2)}
+.tag.obs{border-style:solid}.tag.sus{border-color:var(--suspect);color:var(--suspect);border-style:dashed}.tag.dec{border-color:var(--decided);color:var(--decided);background:var(--decided-bg)}
+.facts{display:grid;gap:8px;margin:0;padding:0;list-style:none;font-size:13.5px;line-height:1.45}
+.facts li{display:grid;grid-template-columns:76px 1fr;gap:10px}
+.facts li span:first-child{font:500 10.5px/1.9 var(--f-mono);text-transform:uppercase;letter-spacing:.05em;color:var(--ink-3)}
+.specrow{display:flex;gap:10px;flex-wrap:wrap}
+.speccard{flex:1 1 120px;border:1px solid var(--line);border-radius:5px;padding:12px;display:grid;gap:8px;justify-items:start;background:var(--land)}
+.speccard small{font:400 11px var(--f-mono);color:var(--ink-2)}
+.speccard .diff{font:500 11px var(--f-mono);color:var(--suspect)}
+.pbtn{border:0;font:600 13px/1 'IBM Plex Sans',system-ui,sans-serif;color:#fff;padding:0 16px;cursor:default}
+.screens{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.scr{border:1px solid var(--line);border-radius:6px;background:#FFFFFF;padding:7px;display:grid;gap:5px;aspect-ratio:9/14;max-width:100%;align-content:start;overflow:hidden;position:relative}
+.scr .bar{height:5px;border-radius:2px;background:#E3E8EC}
+.scr .img{height:34%;border-radius:3px;background:linear-gradient(135deg,#9CC3D5,#D7E5D0)}
+.scr .fld{height:11px;border:1px solid #CFD8DE;border-radius:3px}
+.scr .b{height:14px;border-radius:4px;margin-top:auto;font:600 6.5px/14px system-ui,sans-serif;color:#fff;text-align:center;outline:2px solid #F2B33D;outline-offset:2px}
+.scr .badge{justify-self:start;font:700 6px system-ui,sans-serif;padding:2px 4px;border-radius:2px;color:#fff;background:#DC2626}
+.scr .err{font:500 6px system-ui,sans-serif;color:#DC2626}
+.scr-cap{font:400 10.5px var(--f-mono);color:var(--ink-2);margin-top:4px}
+.stake{background:var(--suspect-bg);border-radius:5px;padding:12px 14px;font-size:13.5px;line-height:1.5}
+.stake b{font-weight:600}
+.opts{display:grid;gap:8px}
+.opt{text-align:left;border:1px solid var(--line);background:var(--panel);border-radius:5px;padding:12px 14px;display:grid;gap:3px}
+.opt:hover{border-color:var(--ink)}
+.opt b{font-weight:600;font-size:14px}
+.opt span{font-size:12.5px;color:var(--ink-2);line-height:1.4}
+.opt.current{border-color:var(--decided);background:var(--decided-bg)}
+.opt.quiet{border-style:dashed}
+.namebox{display:grid;gap:6px}
+.namebox label{font:500 11px var(--f-mono);text-transform:uppercase;letter-spacing:.06em;color:var(--ink-3)}
+.namebox input{font:600 16px var(--f-body);padding:9px 11px;border:1px solid var(--line);border-radius:4px;background:var(--land);color:var(--ink)}
+.conseq{border:1px solid var(--decided);border-radius:5px;padding:14px;display:grid;gap:10px;background:var(--decided-bg)}
+.conseq ul{margin:0;padding-left:18px;font-size:13.5px;line-height:1.55}
+.conseq .rem{font-size:13px;color:var(--ink-2)}
+.row{display:flex;gap:8px;flex-wrap:wrap}
+.primary{background:var(--ink);color:var(--panel);border:0;border-radius:4px;padding:10px 16px;font-weight:600;font-size:13.5px}
+.ghost{background:none;border:1px solid var(--line);border-radius:4px;padding:10px 14px;font-size:13.5px}
+details.src{font-size:12.5px;color:var(--ink-2)}
+details.src summary{cursor:pointer;font:500 11px var(--f-mono);text-transform:uppercase;letter-spacing:.06em}
+details.src pre{font:400 11px/1.6 var(--f-mono);background:var(--land);border:1px solid var(--line);border-radius:4px;padding:10px;overflow-x:auto;white-space:pre}
+.decided-note{border-left:3px solid var(--decided);padding:6px 0 6px 12px;font-size:13.5px}
+
+/* survey log */
+.log{position:absolute;left:max(16px,env(safe-area-inset-left,0px));right:max(16px,env(safe-area-inset-right,0px));bottom:calc(14px + env(safe-area-inset-bottom,0px));z-index:4;display:flex;gap:8px;align-items:center;overflow-x:auto;padding:2px}
+.log .eyebrow{flex:none;background:var(--panel);padding:7px 10px;border-radius:4px;border:1px solid var(--line)}
+.entry{flex:none;display:flex;align-items:center;gap:8px;background:var(--panel);border:1px solid var(--line);border-radius:4px;padding:6px 6px 6px 10px;font-size:12.5px;max-width:420px}
+.entry .dot{width:8px;height:8px;border-radius:50%;background:var(--decided);flex:none}
+.entry.parked .dot{background:var(--suspect)}
+.entry button{background:none;border:1px solid var(--line);border-radius:3px;padding:3px 8px;font-size:12px}
+.entry.confirm{border-color:var(--suspect);background:var(--suspect-bg)}
+.empty-log{font-size:12.5px;color:var(--ink-2);background:var(--panel);padding:7px 10px;border-radius:4px;border:1px dashed var(--line)}
+.toast{position:absolute;left:50%;top:calc(16px + env(safe-area-inset-top,0px));transform:translate(-50%,-140%);background:var(--ink);color:var(--panel);padding:10px 16px;border-radius:4px;font-size:13px;z-index:9;transition:transform .4s;max-width:calc(100% - 32px)}
+.toast:not(.show){visibility:hidden;transition:transform .4s,visibility 0s .4s}
+.toast.show{transform:translate(-50%,0)}
+@media (max-width:720px){
+  .legend{padding:12px 14px;gap:9px}
+  .legend .sub,.keys{display:none}
+  .attn li:nth-child(n+2){display:none}
+  .is-zoomed .legend > :not(.crumb){display:none!important}
+  .drawer{top:auto;height:78%;width:100%;border-left:0;border-top:1px solid var(--line);border-radius:10px 10px 0 0;transform:translateY(102%)}
+  .drawer.open{transform:none}
+  .screens{grid-template-columns:repeat(3,minmax(0,1fr))}
+}
+</style>
+
+<div class="app" id="app">
+  <svg id="map" viewBox="0 0 1600 1000" preserveAspectRatio="xMidYMid meet" aria-label="Map of the Waypoint design system">
+    <defs>
+      <pattern id="hatch" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
+        <line x1="0" y1="0" x2="0" y2="7" style="stroke:var(--suspect);stroke-width:1.3;opacity:.55"/>
+      </pattern>
+      <filter id="fogf" x="-30%" y="-30%" width="160%" height="160%">
+        <feTurbulence type="fractalNoise" baseFrequency=".018" numOctaves="3" seed="4" result="n"/>
+        <feDisplacementMap in="SourceGraphic" in2="n" scale="38" result="d"/>
+        <feGaussianBlur in="d" stdDeviation="6"/>
+      </filter>
+    </defs>
+    <g id="world"></g>
+  </svg>
+
+  <section class="legend" aria-live="polite">
+    <div class="crumb" id="crumb"></div>
+    <div>
+      <h1>Waypoint design system</h1>
+      <p class="sub">4,812 interface elements across 212 screens and two products, charted from the live code. Solid ground is meaning you've confirmed. Hatching is what the system suspects. Fog is unexplored.</p>
+    </div>
+    <div style="display:grid;gap:6px">
+      <div class="scale" id="scale" aria-hidden="true"></div>
+      <div class="eyebrow" id="scaleText"></div>
+    </div>
+    <div class="keys"><span><i class="k-dec"></i>Decided by you</span><span><i class="k-sus"></i>Suspected</span><span><i class="k-fog"></i>Unexplored</span></div>
+    <div style="display:grid;gap:8px">
+      <div class="eyebrow" id="attnTitle">Where your judgement matters most</div>
+      <ul class="attn" id="attn"></ul>
+    </div>
+  </section>
+
+  <aside class="drawer" id="drawer" aria-label="Evidence">
+    <div class="dhead"><span class="eyebrow" id="dEyebrow">Evidence</span><button class="close" id="dClose">Close</button></div>
+    <div class="dbody" id="dbody"></div>
+  </aside>
+
+  <div class="log" id="log"></div>
+  <div class="toast" id="toast" role="status"></div>
+</div>
+
+<script>
+// ---------- data: fictional travel product "Waypoint" (consumer app + white-label Business portal) ----------
+const TERR = [
+  {id:'colour', name:'Colour', reg:'Foundations', x:330,y:330,r:112,seed:3, sub:'31 values · 9 roles'},
+  {id:'type', name:'Type', reg:'Foundations', x:300,y:610,r:96,seed:7, sub:'6 sizes · 2 families'},
+  {id:'space', name:'Space', reg:'Foundations', x:500,y:820,r:70,seed:11, sub:'8-point scale'},
+  {id:'actions', name:'Actions', reg:'Components', x:770,y:450,r:150,seed:5, sub:'1,604 buttons & links'},
+  {id:'inputs', name:'Inputs', reg:'Components', x:740,y:770,r:92,seed:13, sub:'612 fields'},
+  {id:'cards', name:'Cards', reg:'Components', x:990,y:715,r:88,seed:17, sub:'388 cards'},
+  {id:'nav', name:'Navigation', reg:'Components', x:960,y:235,r:84,seed:19, sub:'tab bar · header'},
+  {id:'forms', name:'Forms', reg:'Patterns', x:1170,y:470,r:86,seed:23, sub:'3 date pickers'},
+  {id:'trip', name:'Trip page', reg:'Compositions', x:1190,y:215,r:76,seed:29, sub:'41 screens'},
+  {id:'checkout', name:'Checkout', reg:'Compositions', x:1210,y:770,r:82,seed:31, sub:'31 screens'},
+  {id:'business', name:'Business portal', reg:'Contexts', x:1460,y:480,r:96,seed:37, sub:'white-label theme'},
+];
+const REGIONS = [['FOUNDATIONS',360,175],['COMPONENTS',840,120],['PATTERNS · COMPOSITIONS',1190,95],['CONTEXTS',1460,330]];
+
+// Product colours appear only inside specimens: they are evidence, so they stay literal in both themes.
+const BLUE='#2563EB', BLUE2='#2460E0', GREEN='#15803D', RED='#DC2626';
+
+const SETTLE = {
+  actions:[
+    {id:'a1',x:-78,y:-42,kind:'btn',fill:BLUE,rx:4,w:46,h:14,t:'Continue',label:'Trip & account',count:'612 on 88 screens',q:'primary'},
+    {id:'a2',x:-8,y:-80,kind:'btn',fill:BLUE2,rx:2.6,w:46,h:14,t:'Pay £412',label:'Checkout',count:'238 on 31 screens',q:'primary'},
+    {id:'a3',x:-84,y:22,kind:'btn',fill:BLUE,rx:4,w:46,h:17,t:'Search',label:'Search bar',count:'141 on 24 screens',q:'primary'},
+    {id:'a4',x:96,y:-6,kind:'btn',fill:BLUE,rx:4,w:46,h:14,t:'Approve',label:'Business portal',count:'203 on 40 screens',q:'business'},
+    {id:'a5',x:34,y:58,kind:'btn',fill:GREEN,rx:7,w:52,h:18,t:'Book now',label:'Checkout, last step',count:'9 on 1 screen',q:'booknow'},
+    {id:'a6',x:-36,y:96,kind:'outline',w:40,h:14,t:'Edit',label:'Secondary action',count:'401 on 96 screens',dec:true},
+    {id:'a7',x:70,y:-88,kind:'link',t:'View details',label:'Text link',count:'330 on 120 screens',sus:true},
+  ],
+  colour:[
+    {id:'c1',x:-55,y:-40,kind:'swatch',fill:BLUE,label:'Brand blue',count:'used in 9 roles',dec:true},
+    {id:'c2',x:30,y:-55,kind:'swatch',fill:'#1E293B',label:'Ink',count:'text & icons',dec:true},
+    {id:'c3',x:-40,y:40,kind:'swatch',fill:'#6B7280',label:'Greys',count:'14 near-greys → 3 roles',dec:true},
+    {id:'c4',x:45,y:30,kind:'swatch',fill:RED,label:'Red #DC2626',count:'errors and deals',q:'red'},
+  ],
+  type:[{id:'t1',x:-30,y:-15,kind:'type',t:'Aa',label:'Display',count:'4 sizes',dec:true},{id:'t2',x:35,y:15,kind:'type',t:'Aa',label:'Body',count:'2 sizes',dec:true}],
+  forms:[{id:'f1',x:0,y:0,kind:'note',label:'3 date pickers',count:'next survey',sus:true}],
+};
+
+const Q = {
+  primary:{terr:'actions',title:'Are these three blue buttons doing the same job?',
+    facts:[['Observed','Three groups of filled blue buttons. 991 buttons on 143 screens.'],['Differs','Corner radius 4 vs 2.6 in Checkout. Search is 6px taller. Checkout blue is a slightly different value.'],['Suspected','They share a click handler pattern and always end a task. That suggests one role, but it is a guess from the code.']],
+    specs:[['a1','Trip & account','612'],['a2','Checkout','238','radius & hue differ'],['a3','Search bar','141','taller']],
+    screens:[['trip','Trip page'],['checkout','Checkout · payment'],['search','Search results']],
+    stake:'This is the most-used action in Waypoint. Naming it settles <b>991 buttons</b> and makes 4 compositions readable.',
+    src:'src/trip/TripFooter.tsx    .btn-primary\nsrc/checkout/PayButton.tsx  .co-btn--cta  (radius 6px)\nsrc/search/SearchBar.tsx    .btn-primary.btn-lg',
+    opts:[
+      {k:'one',b:'Same job',s:'One role. The small differences become things to tidy up later.',name:'Primary action'},
+      {k:'separate',b:'Different jobs',s:'Keep them as three roles, even if they look alike.'},
+      {k:'unsure',b:'Not sure yet',s:'Leave the fog. Nothing changes and it stays on your list.',quiet:true}]},
+  business:{terr:'actions',dep:'primary',title:'Business portal buttons look identical to Primary action. Do they follow it?',
+    facts:[['Observed','203 buttons on 40 Business screens. Same size, radius and blue as Primary action.'],['Observed','Business is white-labelled. Partners set their own brand colour at sign-up.'],['Suspected','Identical today because no partner has changed the default yet.']],
+    specs:[['a1','Consumer · Continue','612'],['a4','Business · Approve','203','identical']],
+    screens:[['biz','Expense approval'],['trip','Consumer trip page']],
+    stake:'Looking the same now does not mean they must change together. A partner rebrand will test this.',
+    src:'portal/ApproveBar.tsx   <Button tone="brand">\ntheme: partner.brandColor ?? "#2563EB"',
+    opts:[
+      {k:'themed',b:'Same job, partner\'s colour',s:'Business uses Primary action, but its colour comes from the partner theme.'},
+      {k:'merged',b:'Same job, same look always',s:'Business can never differ. A partner rebrand would change nothing.'},
+      {k:'different',b:'Different job',s:'Approving spend is its own role with its own rules.'},
+      {k:'unsure',b:'Not sure yet',s:'Keep it unresolved.',quiet:true}]},
+  booknow:{terr:'actions',title:'"Book now" is green and larger. Drift, or on purpose?',
+    facts:[['Observed','9 buttons, all on the last checkout step. Added in release 4.2.'],['Observed','Source comment mentions experiment “checkout-cta-green”.'],['Suspected','Looks like a one-off. The system cannot tell if the experiment shipped on purpose.']],
+    specs:[['a5','Book now','9','green, 18px tall, radius 7'],['a2','Pay £412','238','primary in checkout']],
+    screens:[['book','Checkout · review'],['checkout','Checkout · payment']],
+    stake:'If it is deliberate, it should be protected from tidy-ups. If it is drift, 9 buttons should be fixed.',
+    src:'src/checkout/ReviewStep.tsx\n  // exp: checkout-cta-green (won, keep)  <- 2023-05\n  <button class="cta-green">Book now</button>',
+    opts:[
+      {k:'exception',b:'Deliberate exception',s:'Keep it. Mark it on the map so nobody “fixes” it.'},
+      {k:'drift',b:'Drift',s:'It should be a Primary action. Add 9 buttons to the fix list.'},
+      {k:'ask',b:'Ask the Checkout team',s:'Park it with an owner. It stays visible as open.',quiet:true}]},
+  red:{terr:'colour',title:'Is the red on errors the same red as on Deal badges?',
+    facts:[['Observed','One value, #DC2626. 148 error messages and 61 Deal badges.'],['Suspected','Grouped as one colour because the value is identical.']],
+    specs:[['err','Error message','148'],['deal','Deal badge','61','same value']],
+    screens:[['form','Passenger form'],['deal','Search results']],
+    stake:'If these are one role, making errors more accessible would also recolour every promotion.',
+    src:'tokens.css   --red-600: #DC2626\nused by .field-error, .badge--deal',
+    opts:[
+      {k:'two',b:'Same colour, two meanings',s:'Split into Danger and Promotion. They share a value today and can drift apart later.'},
+      {k:'one',b:'One meaning',s:'Keep a single role. Changing it changes both.'},
+      {k:'unsure',b:'Not sure yet',s:'Leave it suspected.',quiet:true}]},
+};
+const LABELS = {
+  primary:{one:'Named “Primary action”',separate:'Kept 3 button roles separate',unsure:'Parked blue buttons'},
+  business:{themed:'Business follows Primary, own colour',merged:'Business locked to consumer look',different:'Approve is its own role',unsure:'Parked Business buttons'},
+  booknow:{exception:'“Book now” kept as exception',drift:'“Book now” marked as drift',ask:'“Book now” sent to Checkout team'},
+  red:{two:'Red split: Danger + Promotion',one:'Red kept as one role',unsure:'Parked the reds'},
+};
+
+const S = {primary:null,business:null,booknow:null,red:null,zoom:null,open:null,step:null,draft:null,name:'Primary action',confirmUndo:null};
+let log = [];
+
+// ---------- geometry ----------
+function rng(seed){let s=seed*9301+49297;return()=>((s=(s*9301+49297)%233280)/233280)}
+function blob(cx,cy,r,seed,scale=1){
+  const R=rng(seed),n=22,ph=[R()*6,R()*6,R()*6],pts=[];
+  for(let i=0;i<n;i++){const a=i/n*Math.PI*2;const k=1+.12*Math.sin(2*a+ph[0])+.08*Math.sin(3*a+ph[1])+.05*Math.sin(5*a+ph[2]);pts.push([cx+Math.cos(a)*r*k*scale,cy+Math.sin(a)*r*k*scale*.86])}
+  let d=`M${pts[0][0].toFixed(1)},${pts[0][1].toFixed(1)}`;
+  for(let i=0;i<n;i++){const p0=pts[(i-1+n)%n],p1=pts[i],p2=pts[(i+1)%n],p3=pts[(i+2)%n];
+    d+=`C${(p1[0]+(p2[0]-p0[0])/6).toFixed(1)},${(p1[1]+(p2[1]-p0[1])/6).toFixed(1)} ${(p2[0]-(p3[0]-p1[0])/6).toFixed(1)},${(p2[1]-(p3[1]-p1[1])/6).toFixed(1)} ${p2[0].toFixed(1)},${p2[1].toFixed(1)}`}
+  return d+'Z';
+}
+const T = id=>TERR.find(t=>t.id===id);
+
+function terrState(id){
+  if(id==='actions'){ if(!S.primary||S.primary==='unsure') return 'fog';
+    const open=[S.booknow,S.primary==='one'?S.business:'x'].some(v=>!v||v==='unsure'||v==='ask'); return open?'mixed':'settled'}
+  if(id==='colour') return S.red&&S.red!=='unsure'?'settled':'mixed';
+  if(id==='business') return S.business&&S.business!=='unsure'?'settled':'fog';
+  if(id==='forms') return 'mixed';
+  return 'settled';
+}
+function openQuestions(){
+  const q=[];
+  if(!S.primary||S.primary==='unsure') q.push({id:'primary',t:'Blue buttons: one job or three?',s:'Settles 991 buttons on 143 screens'});
+  if(S.primary==='one'&&(!S.business||S.business==='unsure')) q.push({id:'business',t:'Business buttons look identical',s:'Theme or the same thing?'});
+  if(!S.booknow||S.booknow==='ask') q.push({id:'booknow',t:'Green “Book now” in checkout',s:S.booknow==='ask'?'Waiting on Checkout team':'Drift or deliberate?'});
+  if(!S.red||S.red==='unsure') q.push({id:'red',t:'One red, used two ways',s:'Errors and Deal badges'});
+  return q;
+}
+
+// ---------- render map ----------
+const W = document.getElementById('world');
+const ns='http://www.w3.org/2000/svg';
+function el(tag,attrs={},parent){const e=document.createElementNS(ns,tag);for(const k in attrs)e.setAttribute(k,attrs[k]);parent&&parent.appendChild(e);return e}
+
+function roads(){
+  const out=[];
+  const pr=S.primary==='one'||S.primary==='separate';
+  const prev=S.step==='confirm'&&S.open==='primary';
+  for(const to of ['trip','checkout','forms','nav']) out.push(['actions',to,prev?'preview':pr?'decided':'suspect']);
+  if(S.primary==='one'||(prev)) out.push(['actions','business',S.business==='themed'||S.business==='merged'?'decided':(S.open==='business'&&S.step==='confirm')?'preview':'suspect',S.business==='themed'?'themed':S.business==='merged'?'locked':'']);
+  if(S.red==='two'){out.push(['colour','inputs','decided','Danger']);out.push(['colour','cards','decided','Promotion'])}
+  else out.push(['colour','inputs',(S.open==='red'&&S.step==='confirm')?'preview':'suspect']);
+  out.push(['colour','actions','decided']);out.push(['type','actions','decided']);out.push(['inputs','forms','decided']);out.push(['cards','trip','decided']);out.push(['inputs','checkout','decided']);
+  return out;
+}
+
+function draw(){
+  W.innerHTML='';
+  // sea grid with survey coordinates
+  const g0=el('g',{},W);
+  for(let x=0;x<=1600;x+=100){el('line',{x1:x,y1:0,x2:x,y2:1000,class:'gridline'},g0);if(x%200===0)el('text',{x:x+4,y:992,class:'coord'},g0).textContent=String(x/100).padStart(2,'0')}
+  for(let y=0;y<=1000;y+=100){el('line',{x1:0,y1:y,x2:1600,y2:y,class:'gridline'},g0);if(y%200===0&&y)el('text',{x:4,y:y-4,class:'coord'},g0).textContent=String.fromCharCode(64+y/100)}
+  for(const [t,x,y] of REGIONS) el('text',{x,y,class:'region'},W).textContent=t;
+  // roads under land
+  const gr=el('g',{},W);
+  for(const [a,b,c,lab] of roads()){const A=T(a),B=T(b);const mx=(A.x+B.x)/2+(B.y-A.y)*.12,my=(A.y+B.y)/2-(B.x-A.x)*.12;
+    el('path',{d:`M${A.x},${A.y}Q${mx},${my} ${B.x},${B.y}`,class:'road '+c},gr);
+    if(lab){const t=el('text',{x:mx*.5+(A.x+B.x)/4,y:my*.5+(A.y+B.y)/4-6,class:'roadlabel'},gr);t.textContent=lab}}
+  for(const t of TERR){
+    const st=terrState(t.id);
+    const g=el('g',{class:'terr'+(S.zoom===t.id?' current':''),'data-id':t.id,tabindex:0,role:'button','aria-label':`${t.name}, ${st}`},W);
+    for(const k of [1.18,1.09]) el('path',{d:blob(t.x,t.y,t.r,t.seed,k),class:'contour'},g);
+    el('path',{d:blob(t.x,t.y,t.r,t.seed),class:'landmass'},g);
+    const h=el('path',{d:blob(t.x,t.y,t.r*.92,t.seed),class:'hatch'},g);h.style.opacity=st==='mixed'?(t.id==='actions'?.55:.35):0;
+    if(t.id==='forms'||t.id==='colour'){} // partial uncertainty shown by hatching only
+    const fog=el('path',{d:blob(t.x+(t.id==='actions'?-30:0),t.y+(t.id==='actions'?-20:0),t.id==='actions'?t.r*.62:t.r*.9,t.seed+1),class:'fog'},g);
+    fog.style.opacity=st==='fog'?(S.zoom===t.id?.62:.9):0;
+    el('text',{x:t.x,y:t.y-4,class:'tname'},g).textContent=t.name;
+    el('text',{x:t.x,y:t.y+14,class:'tsub'},g).textContent=t.sub;
+    drawSettlements(t,g);
+    g.addEventListener('click',e=>{if(S.zoom!==t.id){e.stopPropagation();zoomTo(t.id)}});
+    g.addEventListener('keydown',e=>{if(e.key==='Enter'&&S.zoom!==t.id)zoomTo(t.id)});
+  }
+  // beacons for open questions
+  for(const q of openQuestions()){const t=T(Q[q.id].terr);const off=q.id==='red'?[60,-60]:q.id==='business'?[110,-70]:q.id==='booknow'?[60,90]:[-40,-110];
+    const b=el('g',{class:'beacon'},W);const cx=t.x+off[0],cy=t.y+off[1];
+    el('circle',{cx,cy,r:9,class:'ring pulse'},b);el('circle',{cx,cy,r:5,class:'dot'},b)}
+}
+
+function drawSettlements(t,g){
+  const list=SETTLE[t.id];if(!list)return;
+  const s=el('g',{class:'settle'},g);
+  const cx=t.x,cy=t.y;
+  if(t.id==='actions'){
+    // boundary around the blue-button group
+    const P=S.primary;
+    if(P==='one'){el('path',{d:blob(cx-55,cy-32,62,77,1),class:'bound decided'},s);
+      const f=el('text',{x:cx-55,y:cy-104,class:'flag decided','text-anchor':'middle'},s);f.textContent='⚑ '+S.name+' · you';}
+    else if(P==='separate'){for(const id of ['a1','a2','a3']){const it=list.find(i=>i.id===id);el('circle',{cx:cx+it.x,cy:cy+it.y,r:28,class:'bound decided'},s)}
+      el('text',{x:cx-55,y:cy-118,class:'flag decided','text-anchor':'middle'},s).textContent='3 roles kept apart · you'}
+    else {el('path',{d:blob(cx-55,cy-32,62,77,1),class:'bound suspect'},s);
+      el('text',{x:cx-55,y:cy-104,class:'flag suspect','text-anchor':'middle'},s).textContent='Suspected: one job?'}
+    if(S.primary==='one'&&S.business==='themed'){el('text',{x:cx+96,y:cy-34,class:'flag decided','text-anchor':'middle'},s).textContent='Primary · partner colour'}
+    if(S.booknow==='exception'){el('text',{x:cx+34,y:cy+90,class:'flag decided','text-anchor':'middle'},s).textContent='◆ Deliberate exception'}
+    if(S.booknow==='drift'){el('text',{x:cx+34,y:cy+90,class:'flag suspect','text-anchor':'middle'},s).textContent='9 on fix list'}
+  }
+  for(const it of list){
+    const x=cx+it.x,y=cy+it.y;
+    const sp=el('g',{class:'spec',tabindex:0,role:'button','aria-label':it.label},s);
+    el('rect',{x:x-31,y:y-17,width:62,height:44,rx:3,class:'halo'},sp);
+    if(it.kind==='btn'){const r=el('rect',{x:x-it.w/2,y:y-it.h/2-2,width:it.w,height:it.h,rx:it.rx},sp);r.style.fill=it.fill;
+      const tx=el('text',{x,y:y-2,class:'btxt'},sp);tx.style.fill='#fff';tx.textContent=it.t}
+    else if(it.kind==='outline'){const r=el('rect',{x:x-it.w/2,y:y-it.h/2-2,width:it.w,height:it.h,rx:4},sp);r.style.fill='#fff';r.style.stroke=BLUE;r.style.strokeWidth=.8;
+      const tx=el('text',{x,y:y-2,class:'btxt'},sp);tx.style.fill=BLUE;tx.textContent=it.t}
+    else if(it.kind==='link'){const tx=el('text',{x,y:y-2,class:'btxt'},sp);tx.style.fill=BLUE;tx.style.textDecoration='underline';tx.textContent=it.t}
+    else if(it.kind==='swatch'){const c=el('circle',{cx:x,cy:y-3,r:9},sp);c.style.fill=it.fill}
+    else if(it.kind==='type'){const tx=el('text',{x,y:y-2,class:'btxt'},sp);tx.style.fill='var(--ink)';tx.style.fontSize=it.label==='Display'?'14px':'9px';tx.textContent=it.t}
+    else {const tx=el('text',{x,y:y-2,class:'btxt'},sp);tx.style.fill='var(--suspect)';tx.textContent='▦ ▦ ▦'}
+    el('text',{x,y:y+13,class:'slabel'},sp).textContent=it.label;
+    el('text',{x,y:y+20,class:'scount'},sp).textContent=it.count;
+    if(it.q){const done=S[it.q]&&!['unsure','ask'].includes(S[it.q]);const locked=Q[it.q].dep&&S[Q[it.q].dep]!=='one';
+      if(!(it.q==='primary')&&!locked){const p=el('g',{class:'pin'+(done?' done':'')},sp);el('circle',{cx:x+28,cy:y-15,r:5},p);el('text',{x:x+28,y:y-15},p).textContent=done?'✓':'?'}}
+    if(it.dec){const p=el('g',{class:'pin done'},sp);el('circle',{cx:x+28,cy:y-15,r:4},p);el('text',{x:x+28,y:y-15},p).textContent='✓'}
+    sp.addEventListener('click',e=>{e.stopPropagation();it.q?openQ(it.q):openInfo(it)});
+    sp.addEventListener('keydown',e=>{if(e.key==='Enter'){e.stopPropagation();it.q?openQ(it.q):openInfo(it)}});
+  }
+}
+
+// ---------- zoom ----------
+const svg=document.getElementById('map');
+function zoomTo(id){
+  S.zoom=id;
+  const t=T(id); const k=Math.min(4.2,1000/(t.r*2.9));
+  const pad = window.innerWidth>720 && S.open ? -150:0;
+  W.style.transform=`translate(${800-t.x*k+ (window.innerWidth>720?60:0)}px,${500-t.y*k}px) scale(${k})`;
+  svg.classList.add('zoomed');document.getElementById('app').classList.add('is-zoomed');
+  render();
+}
+function zoomOut(){S.zoom=null;W.style.transform='none';svg.classList.remove('zoomed');document.getElementById('app').classList.remove('is-zoomed');closeDrawer();render()}
+svg.addEventListener('click',()=>{if(S.zoom&&!S.open)zoomOut()});
+
+// ---------- legend ----------
+function renderLegend(){
+  const c=document.getElementById('crumb');
+  if(S.zoom){const t=T(S.zoom);c.innerHTML=`<button id="cw">Whole system</button><span>›</span><span>${t.reg}</span><span>›</span><b style="color:var(--ink)">${t.name}</b>`;document.getElementById('cw').onclick=zoomOut}
+  else c.innerHTML='<span>Whole system</span><span>·</span><span>select a territory to zoom</span>';
+  const counts={settled:0,mixed:0,fog:0};TERR.forEach(t=>counts[terrState(t.id)]++);
+  const sc=document.getElementById('scale');
+  sc.innerHTML=`<span style="flex-grow:${counts.settled};background:var(--decided)"></span><span style="flex-grow:${counts.mixed};background:repeating-linear-gradient(45deg,var(--suspect) 0 2px,var(--suspect-bg) 2px 5px)"></span><span style="flex-grow:${counts.fog};background:var(--sea-line)"></span>`;
+  document.getElementById('scaleText').textContent=`${counts.settled} of ${TERR.length} territories understood · ${counts.mixed} partly · ${counts.fog} in fog`;
+  const qs=openQuestions(), a=document.getElementById('attn');
+  a.innerHTML=qs.length?qs.slice(0,3).map((q,i)=>`<li><button data-q="${q.id}"><span class="n">${i+1}</span><b>${q.t}</b><small>${q.s}</small></button></li>`).join(''):'<li class="ok">Nothing urgent. Remaining fog is low-impact and can wait.</li>';
+  if(qs.length>3) a.innerHTML+=`<li class="eyebrow" style="padding:2px 2px 0">+${qs.length-3} more, lower impact</li>`;
+  a.querySelectorAll('button').forEach(b=>b.onclick=()=>{const q=b.dataset.q;zoomTo(Q[q].terr);openQ(q)});
+}
+
+// ---------- drawer ----------
+const D=document.getElementById('drawer'), DB=document.getElementById('dbody');
+document.getElementById('dClose').onclick=closeDrawer;
+function closeDrawer(){S.open=null;S.step=null;D.classList.remove('open');render()}
+
+function specHTML(id){
+  const it=SETTLE.actions.find(i=>i.id===id);
+  if(id==='err') return `<div style="display:grid;gap:4px"><div style="border:1px solid ${RED};border-radius:4px;width:130px;height:24px;background:#fff"></div><span style="font:500 12px system-ui;color:${RED}">Enter a valid passport number</span></div>`;
+  if(id==='deal') return `<span style="background:${RED};color:#fff;font:700 11px system-ui;padding:3px 7px;border-radius:3px;letter-spacing:.04em">DEAL −30%</span>`;
+  return `<button class="pbtn" tabindex="-1" style="background:${it.fill};border-radius:${it.rx*1.6}px;height:${it.h*2.6}px">${it.t}</button>`;
+}
+function screenHTML(kind){
+  const b=(c,t,r=4)=>`<div class="b" style="background:${c};border-radius:${r}px">${t}</div>`;
+  const m={trip:`<div class="bar"></div><div class="img"></div><div class="bar" style="width:70%"></div><div class="bar" style="width:50%"></div>${b(BLUE,'Continue')}`,
+    checkout:`<div class="bar"></div><div class="fld"></div><div class="fld"></div><div class="fld" style="width:60%"></div>${b(BLUE2,'Pay £412',3)}`,
+    search:`<div class="fld" style="height:14px"></div><div class="bar"></div><div class="img" style="height:22%"></div><div class="bar" style="width:60%"></div>${b(BLUE,'Search')}`,
+    biz:`<div class="bar" style="background:#334155"></div><div class="bar" style="width:80%"></div><div class="bar" style="width:65%"></div><div class="bar" style="width:72%"></div>${b(BLUE,'Approve')}`,
+    book:`<div class="bar"></div><div class="img" style="height:24%"></div><div class="bar" style="width:55%"></div><div class="bar" style="width:40%"></div><div class="b" style="background:${GREEN};border-radius:7px;height:18px;line-height:18px">Book now</div>`,
+    form:`<div class="bar"></div><div class="fld"></div><div class="fld" style="border-color:${RED}"></div><div class="err">Enter a valid passport</div><div class="fld"></div>`,
+    deal:`<div class="fld" style="height:13px"></div><div class="img" style="height:22%"></div><span class="badge">DEAL −30%</span><div class="bar" style="width:60%"></div><div class="bar" style="width:40%"></div>`};
+  return m[kind];
+}
+
+function openInfo(it){
+  S.open='info';D.classList.add('open');
+  document.getElementById('dEyebrow').textContent=T(S.zoom).name;
+  DB.innerHTML=`<div class="prov"><span class="tag ${it.dec?'dec':'sus'}">${it.dec?'Decided by you · 3 Oct':'Suspected · not asked yet'}</span></div>
+  <h2>${it.label}</h2><ul class="facts"><li><span>Observed</span><span>${it.count}</span></li>
+  ${it.sus?'<li><span>Why wait</span><span>Low impact. Asking now would cost you more than it settles.</span></li>':'<li><span>Status</span><span>Confirmed earlier. Click “Change” if it no longer holds.</span></li>'}</ul>
+  ${it.dec?'<div class="row"><button class="ghost" id="chg">Change this decision</button></div>':''}`;
+  const c=document.getElementById('chg');if(c)c.onclick=()=>toast('Earlier decisions reopen the same way. Try it on the blue buttons.');
+  renderLegend();
+}
+
+function openQ(id){
+  const q=Q[id];S.open=id;if(S.step!=='confirm'||S.open!==id)S.step=null;
+  if(S.zoom!==q.terr) zoomTo(q.terr);
+  D.classList.add('open');
+  document.getElementById('dEyebrow').textContent=`${T(q.terr).name} · question`;
+  if(q.dep&&S[q.dep]!=='one'){
+    DB.innerHTML=`<h2>${q.title}</h2><p class="stake">This depends on whether the blue buttons are one role. Answer that first, then this becomes a quick yes or no.</p><div class="row"><button class="primary" id="go">Go to blue buttons</button></div>`;
+    document.getElementById('go').onclick=()=>openQ(q.dep);render();return;
+  }
+  const cur=S[id];
+  const decidedLine = cur ? `<div class="decided-note">You chose <b>${q.opts.find(o=>o.k===cur).b}</b>. Pick another answer to change it; anything that depended on it will be shown before it moves.</div>`:'';
+  if(S.step==='confirm'){DB.innerHTML=confirmHTML(id);wireConfirm(id);render();return}
+  DB.innerHTML=`
+    <div class="prov"><span class="tag obs">Observed</span><span class="tag sus">Suspected</span>${cur&&cur!=='unsure'?'<span class="tag dec">Decided by you</span>':''}</div>
+    <h2>${q.title}</h2>
+    ${decidedLine}
+    <div class="specrow">${q.specs.map(([sid,lab,n,d])=>`<div class="speccard">${specHTML(sid)}<small>${lab} · ${n}</small>${d?`<span class="diff">${d}</span>`:''}</div>`).join('')}</div>
+    <div><div class="screens">${q.screens.map(([k,c])=>`<div><div class="scr" aria-hidden="true">${screenHTML(k)}</div><div class="scr-cap">${c}</div></div>`).join('')}</div></div>
+    <ul class="facts">${q.facts.map(([a,b])=>`<li><span>${a}</span><span>${b}</span></li>`).join('')}</ul>
+    <div class="stake">${q.stake}</div>
+    <div class="opts">${q.opts.map(o=>`<button class="opt${o.quiet?' quiet':''}${cur===o.k?' current':''}" data-k="${o.k}"><b>${o.b}</b><span>${o.s}</span></button>`).join('')}</div>
+    <details class="src"><summary>Where this comes from in code</summary><pre>${q.src.replace(/</g,'&lt;')}</pre></details>`;
+  DB.querySelectorAll('.opt').forEach(b=>b.onclick=()=>choose(id,b.dataset.k));
+  DB.scrollTop=0;render();
+}
+
+function choose(id,k){
+  if(k==='unsure'||k==='ask'){commit(id,k);return}
+  S.draft=k;S.step='confirm';DB.innerHTML=confirmHTML(id);wireConfirm(id);render();
+}
+function consequence(id,k){
+  if(id==='primary'&&k==='one') return {list:['991 buttons on 143 screens become one role','Trip page, Checkout, Search and Forms gain a shared action','Radius and height differences go to a tidy-up list, not auto-fixed'],rem:'Not settled by this: Business portal buttons (look identical, different theme) and the green “Book now”. They will be asked next.',name:true};
+  if(id==='primary'&&k==='separate') return {list:['Three roles: one per context','Each can change without touching the others'],rem:'Business portal and “Book now” stay as they are.'};
+  if(id==='business'&&k==='themed') return {list:['Business uses Primary action for structure and behaviour','Its colour comes from the partner theme','A bridge appears between Actions and Business'],rem:'Consumer app is unaffected when a partner rebrands.'};
+  if(id==='business'&&k==='merged') return {list:['Business buttons always match the consumer app'],rem:'Warning: partners would no longer be able to set their button colour. 40 Business screens affected.'};
+  if(id==='business'&&k==='different') return {list:['“Approve” becomes its own role in Business'],rem:'It keeps today\'s look but can change on its own.'};
+  if(id==='booknow'&&k==='exception') return {list:['9 buttons marked as a deliberate exception','Tidy-ups and audits will skip them'],rem:'Recorded with the experiment note as the reason.'};
+  if(id==='booknow'&&k==='drift') return {list:['9 buttons added to the fix list as Primary action'],rem:'Nothing changes in code until someone acts on the list.'};
+  if(id==='red'&&k==='two') return {list:['Danger: 148 error messages','Promotion: 61 Deal badges','Both keep #DC2626 for now'],rem:'You can now change error red for accessibility without touching deals.'};
+  if(id==='red'&&k==='one') return {list:['209 uses stay as one role'],rem:'Any change to error red will recolour Deal badges.'};
+  return {list:[],rem:''};
+}
+function confirmHTML(id){
+  const q=Q[id],k=S.draft,c=consequence(id,k),o=q.opts.find(x=>x.k===k);
+  return `<div class="prov"><span class="tag dec">Preview · not saved yet</span></div>
+  <h2>${o.b}</h2>
+  ${c.name?`<div class="namebox"><label for="roleName">Name this role</label><input id="roleName" value="${S.name}"></div>`:''}
+  <div class="conseq"><div class="eyebrow">What this changes · shown on the map</div><ul>${c.list.map(l=>`<li>${l}</li>`).join('')}</ul><div class="rem">${c.rem}</div></div>
+  <div class="row"><button class="primary" id="ok">Confirm</button><button class="ghost" id="back">Back to evidence</button></div>`;
+}
+function wireConfirm(id){
+  document.getElementById('ok').onclick=()=>{const n=document.getElementById('roleName');if(n&&n.value.trim())S.name=n.value.trim();commit(id,S.draft)};
+  document.getElementById('back').onclick=()=>{S.step=null;openQ(id)};
+}
+function commit(id,k){
+  const prev=S[id];S[id]=k;S.step=null;S.draft=null;
+  log=log.filter(e=>e.q!==id);log.push({q:id,k,prev});
+  if(id==='primary'&&k!=='one'&&S.business){S.business=null;log=log.filter(e=>e.q!=='business')}
+  D.classList.remove('open');S.open=null;
+  const lab=LABELS[id][k].replace('Primary action',S.name);
+  toast(k==='unsure'||k==='ask'?lab+'. Still on your list.':lab+'. The map has been redrawn.');
+  render();
+}
+function undo(id){
+  const deps=id==='primary'&&S.business?['business']:[];
+  if(deps.length&&S.confirmUndo!==id){S.confirmUndo=id;renderLog();return}
+  S[id]=null;log=log.filter(e=>e.q!==id);deps.forEach(d=>{S[d]=null;log=log.filter(e=>e.q!==d)});S.confirmUndo=null;
+  toast(deps.length?'Undone, with 1 dependent decision. Fog restored.':'Undone. That area is back to what the system suspects.');render();
+}
+
+// ---------- survey log ----------
+function renderLog(){
+  const L=document.getElementById('log');
+  if(!log.length){L.innerHTML='<span class="eyebrow">Survey log</span><span class="empty-log">Your decisions will appear here. Each one can be undone.</span>';return}
+  L.innerHTML='<span class="eyebrow">Survey log</span>'+log.map(e=>{
+    const lab=LABELS[e.q][e.k].replace('Primary action',S.name);
+    if(S.confirmUndo===e.q) return `<span class="entry confirm"><span>Also reopens Business portal answer.</span><button data-u="${e.q}">Undo both</button><button data-c="1">Keep</button></span>`;
+    return `<span class="entry ${['unsure','ask'].includes(e.k)?'parked':''}"><span class="dot"></span><span>${lab}</span><button data-o="${e.q}">Review</button><button data-u="${e.q}">Undo</button></span>`}).join('');
+  L.querySelectorAll('[data-u]').forEach(b=>b.onclick=()=>undo(b.dataset.u));
+  L.querySelectorAll('[data-o]').forEach(b=>b.onclick=()=>openQ(b.dataset.o));
+  L.querySelectorAll('[data-c]').forEach(b=>b.onclick=()=>{S.confirmUndo=null;renderLog()});
+}
+let tt;function toast(m){const t=document.getElementById('toast');t.textContent=m;t.classList.add('show');clearTimeout(tt);tt=setTimeout(()=>t.classList.remove('show'),2800)}
+
+function render(){draw();renderLegend();renderLog()}
+render();
+</script>

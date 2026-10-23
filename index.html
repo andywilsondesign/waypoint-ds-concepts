@@ -1,0 +1,141 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Stewarding Waypoint</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600;700;800&family=Geist+Mono:wght@400;500&display=swap">
+<style>
+body{margin:0}[hidden]{display:none!important}
+/* Layout: a single reading column for the brief, widening to a four-up grid for the concepts and the comparison. */
+:root{
+  --bg:#F5F6F4; --surface:#FFFFFF; --ink:#15181B; --ink-2:#575E66; --ink-3:#8A9097; --rule:#DFE2DE;
+  --a:#1F7566; --b:#3C3FB8; --c:#C2457E; --d:#9A5B00;
+  --f-body:'Hanken Grotesk',system-ui,sans-serif; --f-mono:'Geist Mono',ui-monospace,monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#121416; --surface:#1A1D20; --ink:#EBEDEF; --ink-2:#A6ADB4; --ink-3:#737A82; --rule:#2B2F33;
+  --a:#5EC4A9; --b:#9EA1FF; --c:#FF7FB4; --d:#F0B457; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#121416; --surface:#1A1D20; --ink:#EBEDEF; --ink-2:#A6ADB4; --ink-3:#737A82; --rule:#2B2F33;
+  --a:#5EC4A9; --b:#9EA1FF; --c:#FF7FB4; --d:#F0B457; color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font:400 16.5px/1.6 var(--f-body)}
+a{color:inherit}
+:focus-visible{outline:2px solid var(--b);outline-offset:2px}
+main{max-width:1180px;margin:0 auto;padding-block:40px 80px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));display:grid;gap:56px}
+.read{max-width:68ch}
+.eyebrow{font:500 12px var(--f-mono);letter-spacing:.08em;text-transform:uppercase;color:var(--ink-3)}
+h1{margin:6px 0 14px;font:800 clamp(32px,5vw,52px)/1.05 var(--f-body);letter-spacing:-.03em;text-wrap:balance;max-width:18ch}
+h2{margin:0 0 14px;font:700 26px/1.2 var(--f-body);letter-spacing:-.02em;text-wrap:balance}
+h3{margin:0;font:700 19px/1.25 var(--f-body);letter-spacing:-.01em}
+p{margin:0 0 12px}
+.lede{font-size:19px;color:var(--ink-2)}
+.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:14px}
+.card{background:var(--surface);border:1px solid var(--rule);border-radius:12px;padding:20px;display:grid;gap:12px;align-content:start;border-top:4px solid var(--k)}
+.card .tag{font:500 12px var(--f-mono);color:var(--k)}
+.card p{font-size:15px;color:var(--ink-2);margin:0}
+.card ol{margin:0;padding-left:20px;font-size:14.5px;display:grid;gap:4px}
+.card .open{justify-self:start;display:inline-flex;gap:6px;align-items:center;background:var(--ink);color:var(--bg);text-decoration:none;font-weight:600;font-size:14.5px;padding:9px 14px;border-radius:8px}
+.card .new{font:600 11px var(--f-mono);background:var(--k);color:var(--bg);padding:2px 7px;border-radius:999px;margin-left:6px;vertical-align:2px}
+.research{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:12px}
+.rf{border-left:3px solid var(--d);padding:4px 0 4px 14px}
+.rf b{display:block;font-weight:600;margin-bottom:2px}
+.rf span{font-size:15px;color:var(--ink-2)}
+.cmp-wrap{overflow-x:auto;border:1px solid var(--rule);border-radius:12px;background:var(--surface)}
+table{border-collapse:collapse;width:100%;min-width:860px;font-size:14.5px}
+th,td{text-align:left;vertical-align:top;padding:14px 16px;border-bottom:1px solid var(--rule)}
+th{font:500 12px var(--f-mono);text-transform:uppercase;letter-spacing:.06em;color:var(--ink-3)}
+td:first-child{font-weight:600;white-space:nowrap}
+tr:last-child td{border-bottom:0}
+.dot{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:8px;background:var(--k)}
+.rec{background:var(--surface);border:1px solid var(--rule);border-radius:14px;padding:26px;display:grid;gap:18px}
+.layers{display:grid;gap:10px}
+.layer{display:grid;grid-template-columns:150px 1fr;gap:16px;align-items:baseline;padding:12px 0;border-top:1px solid var(--rule)}
+.layer:first-child{border-top:0}
+.layer b{font:600 13px var(--f-mono);color:var(--k)}
+@media (max-width:640px){.layer{grid-template-columns:1fr;gap:4px}}
+.sources{font-size:14px;color:var(--ink-2)}
+.sources ul{padding-left:18px;margin:6px 0 0;display:grid;gap:3px}
+</style>
+
+<main>
+  <header class="read">
+    <div class="eyebrow">UX exploration · human–AI stewardship of a living design system</div>
+    <h1>Making Waypoint's design system understandable</h1>
+    <p class="lede">Four prototypes built on one fictional product: Waypoint, a travel app with a white-label Business portal. About 4,800 interface elements across 212 screens. Every concept works on the same evidence, including the same ambiguous cases, so you can compare the interaction models directly.</p>
+    <p>The shared cases: three blue buttons that are probably one job, a Business portal button that is identical but should stay separately themed, a green “Book now” that is a deliberate exception, and one red used for both errors and promotions.</p>
+  </header>
+
+  <section>
+    <h2>The concepts</h2>
+    <div class="cards">
+      <article class="card" style="--k:var(--a)"><span class="tag">A · The System Atlas</span><h3>Meaning is ground you've surveyed</h3>
+        <p>The system is a map. Settled meaning is solid land, machine suspicion is hatching, the unexplored is fog. Decisions lift the fog and draw roads to the places they affect.</p>
+        <ol><li>Read the map and the three beacons</li><li>Zoom into Actions</li><li>Open the fogged blue buttons, name the role</li><li>Resolve the identical Business button and the green exception</li><li>Undo from the survey log; dependants reopen too</li></ol>
+        <a class="open" href="atlas.html">Open the Atlas →</a></article>
+      <article class="card" style="--k:var(--b)"><span class="tag">B · The Design Dialogue</span><h3>A briefing, not a chatbot</h3>
+        <p>Three questions a session, each with visual evidence and a reason it was asked. Answers write a growing spec on the right. You can push back, park, or redirect.</p>
+        <ol><li>Answer the red question</li><li>Overlay the blue buttons; try “Same, except…”</li><li>Push back with “That's not quite it”</li><li>Preview the Business button in a partner's brand</li><li>Reopen anything from the spec, or undo inline</li></ol>
+        <a class="open" href="dialogue.html">Open the Dialogue →</a></article>
+      <article class="card" style="--k:var(--c)"><span class="tag">C · The Living System</span><h3>Concepts are cells; decisions move matter</h3>
+        <p>Each grain is about 25 real elements, held in membranes that stand for concepts. Split, merge and pin, and the grains migrate. A lens shows where looks and meaning disagree.</p>
+        <ol><li>Tap Red, preview the split, then split</li><li>Confirm the blue buttons as Primary action</li><li>Drag Business onto it and theme it</li><li>Switch to “By appearance” to see the tension glow</li><li>Scrub history back and continue from there</li></ol>
+        <a class="open" href="living.html">Open the Living System →</a></article>
+      <article class="card" style="--k:var(--d)"><span class="tag">D · System Review<span class="new">research-led</span></span><h3>The machine prepares the crit; you run it</h3>
+        <p>Built from what design-system teams already use: the inventory wall, Figma variant sheets and modes, branch-style review, status labels and decision records. The AI drafts proposals and ranks them. You decide, delegate or decline.</p>
+        <ol><li>Read status and drift at the top</li><li>Flip between Inventory, Proposed component and On screens</li><li>Adjust the variant sheet, then “Approve with my changes”</li><li>Ask Tom about Business, then simulate his reply</li><li>Check Library and Decisions; reopen one</li></ol>
+        <a class="open" href="review.html">Open System Review →</a></article>
+    </div>
+  </section>
+
+  <section>
+    <div class="read"><h2>What the research says designers already do</h2>
+    <p>Concept D starts from how teams have historically built and managed systems, rather than from a new metaphor. These are the patterns it borrows.</p></div>
+    <div class="research">
+      <div class="rf"><b>They start from an inventory wall</b><span>Screenshots of every button, field and pattern grouped by category on a slide or board. It exposes inconsistency and makes the case for a system.</span></div>
+      <div class="rf"><b>They think in variant sheets and modes</b><span>Figma component sets as a property grid (size × state), and variables with modes for light, dark and brand. Multi-brand is a theme problem, not a new component.</span></div>
+      <div class="rf"><b>Change goes through review</b><span>Contributors branch the library and request review, like a pull request. Proposals need evidence of need: screenshots of real use across products.</span></div>
+      <div class="rf"><b>Decisions happen in critique and office hours</b><span>Proposals are discussed in crit with design, accessibility and engineering. Good teams record decisions, not just outcomes, so debates aren't reopened.</span></div>
+      <div class="rf"><b>Ownership is spread out</b><span>Central teams review; product teams own their surfaces. Who can approve a new variant has to be clear.</span></div>
+      <div class="rf"><b>The recurring pain is status and rationale</b><span>Survey respondents say they can't tell what's old, broken or coming soon, and nobody wrote down why a pattern was chosen. Detach counts are the main signal of drift.</span></div>
+    </div>
+  </section>
+
+  <section>
+    <h2>Comparison</h2>
+    <div class="cmp-wrap"><table>
+      <thead><tr><th>Concept</th><th>Makes easy</th><th>Makes hard</th><th>Breaks at scale when…</th></tr></thead>
+      <tbody>
+        <tr><td><span class="dot" style="--k:var(--a)"></span>A · Atlas</td><td>Five-second orientation. Seeing where uncertainty lives and how one area connects to others. A strong sense of progress as fog lifts.</td><td>Precise comparison inside a cluster. Map layout carries meaning people may read into (distance, size) that isn't real.</td><td>There are hundreds of territories. Layout needs to stay stable as the system grows, or people lose their bearings.</td></tr>
+        <tr><td><span class="dot" style="--k:var(--b)"></span>B · Dialogue</td><td>Getting to a good decision fast. Explaining why a question matters. Hesitating, pushing back and adding context without penalty.</td><td>Seeing the whole system. You only see what the machine chose to ask, which makes its ranking a quiet form of control.</td><td>Questions depend on each other deeply, or the ranking is wrong and the user can't tell what's missing.</td></tr>
+        <tr><td><span class="dot" style="--k:var(--c)"></span>C · Living</td><td>Seeing consequences: grains moving, dependencies following. The appearance-vs-meaning lens makes “similar is not the same” visible.</td><td>Reading exact facts. Direct manipulation (drag to merge) is powerful but easy to trigger by accident, and hard to make accessible.</td><td>Thousands of concepts. Physics layouts get noisy; needs aggressive clustering and a keyboard-first path.</td></tr>
+        <tr><td><span class="dot" style="--k:var(--d)"></span>D · Review</td><td>Fitting real team process: evidence, variant sheets, ownership, delegation, recorded reasoning, status labels. Familiar on day one.</td><td>Feeling the shape of the whole system. Can slide back into a review queue if the ranking and “Not this week” aren't disciplined.</td><td>Proposals pile up across teams. Needs strict limits per week and grouping of related proposals into one decision.</td></tr>
+      </tbody></table></div>
+  </section>
+
+  <section class="rec">
+    <div class="read"><div class="eyebrow">Recommendation</div><h2>Use D as the working surface, with A as home and B and C as tools inside it</h2>
+    <p>D is the model designers will trust because it matches how they already decide: evidence, a proposed component, a crit, a recorded reason. On its own it lacks orientation and still risks feeling like a queue. The other concepts fill exactly those gaps.</p></div>
+    <div class="layers">
+      <div class="layer" style="--k:var(--a)"><b>Home · from A</b><span>Open on the Atlas: the system as territories, fog for what's unexplored, beacons for the few places that need judgement. Progress is ground understood, not items reviewed.</span></div>
+      <div class="layer" style="--k:var(--d)"><b>Work · from D</b><span>Clicking a beacon opens a D proposal: inventory, variant sheet or theme modes, on-screen preview, approve, change, ask or decline, with a written reason and status labels in the library.</span></div>
+      <div class="layer" style="--k:var(--b)"><b>Voice · from B</b><span>Each proposal leads with one plain question and why it was asked. Keep “Same, except…”, park and push back. Cap it at three a week.</span></div>
+      <div class="layer" style="--k:var(--c)"><b>Lens · from C</b><span>Inside evidence, an appearance-vs-meaning toggle shows where look-alikes mean different things. The history scrubber becomes the shared undo, so any past state of the system can be seen.</span></div>
+    </div>
+    <p class="read" style="margin:0">Across all four, keep three rules: observed, suspected and decided always look different; nothing becomes approved meaning without a person; and undoing a decision also shows and unwinds anything that followed from it.</p>
+  </section>
+
+  <section class="sources read">
+    <div class="eyebrow">Research sources</div>
+    <ul>
+      <li><a href="https://bradfrost.com/blog/post/interface-inventory/">Brad Frost, Interface Inventory</a></li>
+      <li><a href="https://help.figma.com/hc/en-us/articles/360039238353-Track-library-and-component-usage">Figma, Library analytics</a> and <a href="https://www.figma.com/best-practices/branching-in-figma/">Branching in Figma</a></li>
+      <li><a href="https://design-system.service.gov.uk/community/contribution-criteria">GOV.UK Design System, Contribution criteria</a> and <a href="https://design-system.service.gov.uk/community/propose-a-component-or-pattern">Propose a component</a></li>
+      <li><a href="https://bradfrost.com/?p=20222">Brad Frost, Design system governance</a> and <a href="https://www.netguru.com/blog/design-system-governance">Netguru, Governance plan</a></li>
+      <li><a href="https://designsystemssurvey.seesparkbox.com/2021">Sparkbox, Design Systems Survey</a></li>
+      <li><a href="https://rangle.io/blog/using-figma-variables-to-build-a-multi-brand-design-system">Rangle, Figma variables for multi-brand systems</a></li>
+    </ul>
+  </section>
+</main>
