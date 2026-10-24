@@ -1,0 +1,121 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Calibrating Primary Action</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Newsreader:opsz,wght@6..72,400;6..72,500&family=Figtree:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: one reading column. The three concepts sit side by side, then a comparison and the patterns worth pursuing. */
+:root{
+  --bg:#F7F7F5; --surface:#FFFFFF; --ink:#1B1C1E; --ink-2:#5E6268; --ink-3:#93979C; --rule:#E3E3DF;
+  --a:#B26A00; --b:#C2410C; --c:#0E7C6B; --blue:#2563EB; --focus:#2563EB;
+  --f-voice:'Newsreader',Georgia,serif; --f-ui:'Figtree',system-ui,sans-serif; --f-mono:'JetBrains Mono',ui-monospace,monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#141516; --surface:#1C1D1F; --ink:#ECEDEE; --ink-2:#A6AAB0; --ink-3:#73777D; --rule:#2E3033;
+  --a:#EFB45A; --b:#FB923C; --c:#5CCFB9; --focus:#8DB0FF; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#141516; --surface:#1C1D1F; --ink:#ECEDEE; --ink-2:#A6AAB0; --ink-3:#73777D; --rule:#2E3033;
+  --a:#EFB45A; --b:#FB923C; --c:#5CCFB9; --focus:#8DB0FF; color-scheme:dark}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:400 16.5px/1.6 var(--f-ui)}
+[hidden]{display:none!important}
+a{color:inherit}
+:focus-visible{outline:2px solid var(--focus);outline-offset:2px}
+main{max-width:1080px;margin:0 auto;padding-block:44px 80px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));display:grid;gap:52px}
+.read{max-width:66ch}
+.eyebrow{font:500 12px var(--f-mono);letter-spacing:.08em;text-transform:uppercase;color:var(--ink-3)}
+h1{margin:8px 0 14px;font:400 clamp(34px,5vw,50px)/1.08 var(--f-voice);letter-spacing:-.015em;text-wrap:balance;max-width:20ch}
+h2{margin:0 0 14px;font:600 24px/1.25 var(--f-ui);letter-spacing:-.015em}
+h3{margin:0;font:600 19px/1.3 var(--f-ui)}
+p{margin:0 0 12px}
+.lede{font-size:19px;color:var(--ink-2)}
+.base{display:flex;gap:18px;align-items:center;flex-wrap:wrap;background:var(--surface);border:1px solid var(--rule);border-radius:14px;padding:18px 20px}
+.pb{display:inline-flex;align-items:center;justify-content:center;background:#2563EB;color:#fff;font:600 14px/1 system-ui,sans-serif;padding:0 18px;white-space:nowrap}
+.base .t{display:grid;gap:2px;font-size:14.5px;color:var(--ink-2);flex:1 1 220px}
+.base .t b{color:var(--ink);font-size:16px}
+.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:14px}
+.card{background:var(--surface);border:1px solid var(--rule);border-radius:14px;padding:22px;display:grid;gap:12px;align-content:start;border-top:4px solid var(--k)}
+.card .tag{font:500 12px var(--f-mono);color:var(--k)}
+.card p{font-size:15px;color:var(--ink-2);margin:0}
+.card ol{margin:0;padding-left:20px;font-size:14.5px;display:grid;gap:3px}
+.card .q{font:400 18px/1.35 var(--f-voice);font-style:italic}
+.open{justify-self:start;background:var(--ink);color:var(--bg);text-decoration:none;font-weight:600;font-size:14.5px;padding:9px 15px;border-radius:9px}
+.cmp-wrap{overflow-x:auto;border:1px solid var(--rule);border-radius:14px;background:var(--surface)}
+table{border-collapse:collapse;width:100%;min-width:860px;font-size:14.5px}
+th,td{text-align:left;vertical-align:top;padding:14px 16px;border-bottom:1px solid var(--rule)}
+thead th{font:500 12px var(--f-mono);letter-spacing:.06em;text-transform:uppercase;color:var(--ink-3)}
+tbody th{font-weight:600;width:190px}
+tr:last-child td,tr:last-child th{border-bottom:0}
+.dot{display:inline-block;width:9px;height:9px;border-radius:50%;background:var(--k);margin-right:8px}
+.pat{display:grid;gap:0}
+.pat div{display:grid;grid-template-columns:minmax(0,260px) minmax(0,1fr);gap:18px;padding:14px 0;border-top:1px solid var(--rule)}
+.pat b{font-weight:600}
+.pat span{color:var(--ink-2);font-size:15.5px}
+@media (max-width:640px){.pat div{grid-template-columns:1fr;gap:4px}}
+</style>
+
+<main>
+  <p style="margin:0;font-size:14.5px"><a href="../index.html">← Exploration 01: four concepts</a></p>
+  <header class="read">
+    <div class="eyebrow">UX exploration 02 · from design decisions to a living library</div>
+    <h1>Calibrating one component, three ways</h1>
+    <p class="lede">The same small scenario in three prototypes. A travel app’s library has one established component. The product has drifted from it in two places. The designer decides what each difference means and sees the library change.</p>
+  </header>
+
+  <section>
+    <div class="base"><span class="pb" style="height:40px;border-radius:6px">Continue</span>
+      <div class="t"><b>Primary action</b>Completes the main task on a screen · 40px · 6px corners · approved and shipped</div>
+      <span class="pb" style="height:40px;border-radius:4px">Pay £412</span><div class="t"><b>Finding 1 · Checkout</b>Corners are 4px. Drift, variant, or a different job?</div>
+      <span class="pb" style="height:48px;border-radius:6px">Search</span><div class="t"><b>Finding 2 · Search</b>48px tall. A size, an adaptation, or a departure?</div></div>
+  </section>
+
+  <section>
+    <h2>The prototypes</h2>
+    <div class="cards">
+      <article class="card" style="--k:var(--a)"><span class="tag">A · Library-first</span><h3>Findings live where they would belong</h3>
+        <p class="q">Can reviewing change be part of browsing a component?</p>
+        <p>You open the Primary action page. Next to the Default variant sit two dashed cards: the product’s unexplained uses. Open one and it expands in place. Decide, and the card becomes a variant, an exception or a fix, on the same page.</p>
+        <ol><li>Read the component page</li><li>Open “Seen in Checkout”, try Overlay</li><li>Choose “Not quite”, then “Checkout’s style, on purpose”</li><li>Open Search and add it as a size</li><li>Change the Checkout decision from “Why it looks like this”, then Undo</li></ol>
+        <a class="open" href="library-first.html">Open A</a></article>
+      <article class="card" style="--k:var(--b)"><span class="tag">B · Decision-first</span><h3>One question, then the result</h3>
+        <p class="q">Can deciding be nearly effortless without losing the evidence?</p>
+        <p>A calm sequence. The difference is shown at the scale it matters (a magnified corner, measured heights). The most likely answer is offered first; “Why?” and “That’s not right” sit one tap away. Each answer is followed by the updated component card.</p>
+        <ol><li>Read the baseline, then “Look at the first”</li><li>Tap “Why…?”, then “That’s not right”</li><li>Pick “Checkout’s style, on purpose”</li><li>Next: Search, take the suggested size</li><li>Open Library from the dock and Revisit Checkout</li></ol>
+        <a class="open" href="decision-first.html">Open B</a></article>
+      <article class="card" style="--k:var(--c)"><span class="tag">C · Workbench</span><h3>Place the finding in the component’s structure</h3>
+        <p class="q">Does seeing the question and the artefact together give more control?</p>
+        <p>The component is shown as places things can live: variants, allowed in one area, bring back in line, its own component. You decide by choosing a place. The library previews it live, with consequences, before you keep it.</p>
+        <ol><li>Read the component, then “Look at Checkout”</li><li>Choose “Allow in Checkout” over the suggestion</li><li>Keep it; Search comes up next</li><li>Place Search as a variant</li><li>Select the Checkout item, Move it to “Bring back in line”</li></ol>
+        <a class="open" href="workbench.html">Open C</a></article>
+    </div>
+  </section>
+
+  <section>
+    <h2>Comparison</h2>
+    <div class="cmp-wrap"><table>
+      <thead><tr><th></th><th><span class="dot" style="--k:var(--a)"></span>A · Library-first</th><th><span class="dot" style="--k:var(--b)"></span>B · Decision-first</th><th><span class="dot" style="--k:var(--c)"></span>C · Workbench</th></tr></thead>
+      <tbody>
+        <tr><th>Easiest</th><td>Understanding the baseline. The component page is the familiar artefact, and the finding appears exactly where it would end up.</td><td>Reaching a decision. One question, one obvious answer, and the right evidence at the right scale.</td><td>Seeing what a decision means before committing. The live preview answers “what will change?” directly.</td></tr>
+        <tr><th>What the user must understand</th><td>That dashed cards are product uses the library doesn’t describe yet.</td><td>Almost nothing up front. The library card appears only after each answer.</td><td>The four places in the component and what each means. A small vocabulary, but it has to be learned.</td></tr>
+        <tr><th>Remaining effort or ambiguity</th><td>The page gets long; findings can be missed below the fold. Several sections update at once, so the change is spread out.</td><td>The suggested answer is strong, which risks rubber-stamping. The wider library is out of view while deciding.</td><td>Two panes to watch. On narrow screens they stack and the live link weakens. The places can feel like a form if overused.</td></tr>
+        <tr><th>Link from decision to library</th><td>Strongest in place: the card becomes the thing. Reasoning is kept in the component’s “Why it looks like this”.</td><td>Clear but sequential: answer, then the result card. The result arrives after the decision.</td><td>Strongest overall: the library changes as you try each place, and stays visible after.</td></tr>
+        <tr><th>Correcting a decision</th><td>“Change” on the card or reason reopens it in place. Undo in the toast.</td><td>“Revisit” from the library card. Undo on the result.</td><td>Select the placed item and move it. Taking it out returns it to the tray.</td></tr>
+      </tbody></table></div>
+  </section>
+
+  <section>
+    <h2>Patterns worth exploring further</h2>
+    <div class="pat">
+      <div><b>Findings as dashed cards in the library (A)</b><span>The finding sits where it would end up. That makes “is this part of the system?” the question without saying so.</span></div>
+      <div><b>Evidence at the scale of the difference (B)</b><span>A magnified corner and measured heights tell the story faster than two side-by-side buttons. Pick the lens from the property that changed.</span></div>
+      <div><b>One suggested answer, with “Why?” and “That’s not right” (B)</b><span>Fast agreement and an easy, dignified way to disagree. The record keeps that you corrected the assistant.</span></div>
+      <div><b>Deciding by placing (C)</b><span>The answer options are the component’s own structure, so every decision visibly shapes the library rather than filling in a form.</span></div>
+      <div><b>Preview before keeping (C)</b><span>The library updates live, with plain consequences, including what will not change in the product.</span></div>
+      <div><b>Approved vs shipped (all)</b><span>An agreed fix reads “not shipped yet” on the component until the product catches up. The library leads; the product follows.</span></div>
+      <div><b>Reasoning lives on the component (A, C)</b><span>No global history. Each component explains itself, and that explanation is where you change your mind.</span></div>
+    </div>
+  </section>
+</main>

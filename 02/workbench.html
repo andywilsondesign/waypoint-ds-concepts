@@ -1,0 +1,249 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Waypoint Workbench</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: two panes on one workbench. Left is the component's structure, with places a finding can go. Right is the finding being examined. Choosing a place previews the library live before you keep it. */
+:root{
+  --bg:#EEF0F1; --surface:#FFFFFF; --stage:#F4F5F6; --ink:#17191B; --ink-2:#5B6168; --ink-3:#8E949A; --rule:#DDE0E3;
+  --place:#0E7C6B; --place-bg:#E2F3EF; --ghost:#6B5BD6; --ghost-bg:#EEEBFC; --wait:#A15C07; --wait-bg:#FBF0DD; --focus:#2563EB;
+  --f-ui:'IBM Plex Sans',system-ui,sans-serif; --f-mono:'IBM Plex Mono',ui-monospace,monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#111315; --surface:#1A1D20; --stage:#222528; --ink:#E9ECEE; --ink-2:#A2A9B0; --ink-3:#6E757C; --rule:#2C3034;
+  --place:#5CCFB9; --place-bg:#16332E; --ghost:#A99CFF; --ghost-bg:#2A2650; --wait:#F2B65A; --wait-bg:#3A2C13; --focus:#8DB0FF; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#111315; --surface:#1A1D20; --stage:#222528; --ink:#E9ECEE; --ink-2:#A2A9B0; --ink-3:#6E757C; --rule:#2C3034;
+  --place:#5CCFB9; --place-bg:#16332E; --ghost:#A99CFF; --ghost-bg:#2A2650; --wait:#F2B65A; --wait-bg:#3A2C13; --focus:#8DB0FF; color-scheme:dark}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:400 15px/1.5 var(--f-ui)}
+[hidden]{display:none!important}
+button{font:inherit;color:inherit;cursor:pointer}
+:focus-visible{outline:2px solid var(--focus);outline-offset:2px}
+.bench{max-width:1240px;margin:0 auto;padding-block:20px 40px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));display:grid;grid-template-columns:minmax(0,1.05fr) minmax(0,1fr);gap:16px;align-items:start}
+@media (max-width:880px){.bench{grid-template-columns:minmax(0,1fr)}.inv{order:-1}}
+.top{grid-column:1/-1;display:flex;justify-content:space-between;align-items:baseline;gap:12px;flex-wrap:wrap}
+.top h1{margin:0;font:600 16px var(--f-ui)}
+.top h1 span{color:var(--ink-3);font-weight:400}
+.top .state{font-size:14px;color:var(--ink-2)}
+.pane{background:var(--surface);border:1px solid var(--rule);border-radius:14px;padding:20px;display:grid;gap:16px;min-width:0}
+.lbl{font:500 11px var(--f-mono);letter-spacing:.08em;text-transform:uppercase;color:var(--ink-3)}
+.comp h2{margin:2px 0 2px;font:700 26px var(--f-ui);letter-spacing:-.02em}
+.comp p.p{margin:0;color:var(--ink-2)}
+.status{font-size:13px;color:var(--ink-2);display:flex;gap:12px;flex-wrap:wrap;margin-top:6px}
+.status i{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:6px}
+.zone{border-top:1px solid var(--rule);padding-top:14px;display:grid;gap:10px}
+.zh{display:flex;justify-content:space-between;gap:10px;align-items:baseline}
+.zh b{font-weight:600}
+.zh span{font-size:13px;color:var(--ink-2)}
+.items{display:flex;gap:10px;flex-wrap:wrap}
+.it{background:var(--stage);border-radius:10px;padding:14px 14px 10px;display:grid;gap:8px;justify-items:center;min-width:132px;border:1.5px solid transparent;text-align:center}
+.it small{font-size:12.5px;color:var(--ink-2)}
+.it b{font-size:13.5px;font-weight:600}
+.it.placed{border-color:var(--place);background:var(--place-bg);cursor:pointer}
+.it.placed.pending{border-color:var(--wait);background:var(--wait-bg)}
+.it.ghost{border-style:dashed;border-color:var(--ghost);background:var(--ghost-bg);animation:in .35s ease}
+@keyframes in{from{opacity:0;transform:scale(.94)}}
+.it .tagg{font:500 10.5px var(--f-mono);color:var(--ghost)}
+.slot{border:1.5px dashed var(--rule);border-radius:10px;min-width:132px;min-height:96px;display:grid;place-items:center;padding:10px;font-size:13px;color:var(--ink-3);background:none;text-align:center}
+.slot.live{border-color:var(--ghost);color:var(--ghost)}
+.slot.live:hover{background:var(--ghost-bg)}
+.slot .sg{display:block;font:500 10.5px var(--f-mono);margin-top:3px}
+.empty{font-size:13px;color:var(--ink-3)}
+.tray{background:var(--stage);border-radius:10px;padding:10px 12px;display:flex;gap:10px;flex-wrap:wrap;align-items:center;font-size:13.5px}
+.tray button{display:flex;gap:8px;align-items:center;background:var(--surface);border:1px solid var(--rule);border-radius:8px;padding:5px 10px 5px 6px;font-size:13px}
+.tray button[aria-pressed="true"]{border-color:var(--ghost);box-shadow:0 0 0 1px var(--ghost)}
+.inv h3{margin:0;font:600 20px/1.3 var(--f-ui);letter-spacing:-.01em;text-wrap:balance}
+.cmp{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.cmp > div{background:var(--stage);border-radius:10px;padding:22px 10px 12px;display:grid;justify-items:center;gap:12px;min-height:130px;align-content:center}
+.cmp small{font:500 11.5px var(--f-mono);color:var(--ink-2)}
+.diff b{font-weight:600}.diff span{color:var(--ink-2)}
+.ctx{display:flex;gap:12px;align-items:center}
+.mini{width:120px;border-radius:8px;background:#fff;border:1px solid #DDE1E5;padding:8px;display:grid;gap:5px;flex:none}
+.mini .ln{height:5px;border-radius:3px;background:#E4E7EB}
+.mini .f{height:12px;border:1px solid #CFD5DB;border-radius:3px}
+.ctx p{margin:0;font-size:13.5px;color:var(--ink-2)}
+.ask{background:var(--ghost-bg);border-radius:10px;padding:14px 16px;display:grid;gap:6px}
+.ask b{font-weight:600}
+.ask p{margin:0;font-size:14px;color:var(--ink-2)}
+.conseq{border:1px solid var(--rule);border-radius:10px;padding:14px 16px;display:grid;gap:10px;animation:in .3s ease}
+.conseq .what{font-size:15.5px;font-weight:600}
+.conseq ul{margin:0;padding-left:18px;font-size:14px;color:var(--ink-2);display:grid;gap:3px}
+.conseq .over{font-size:13.5px;color:var(--ghost)}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.keep{background:var(--ink);color:var(--surface);border:0;border-radius:8px;padding:9px 16px;font-weight:600}
+.alt{background:none;border:1px solid var(--rule);border-radius:8px;padding:9px 14px}
+.lk{all:unset;cursor:pointer;color:var(--ink-2);font-size:13.5px;text-decoration:underline;text-underline-offset:3px}
+.lk:focus-visible{outline:2px solid var(--focus)}
+.note{font-size:13.5px;color:var(--ink-2);border-left:2px solid var(--place);padding-left:10px}
+.done{display:grid;gap:12px;justify-items:start}
+.done h3{margin:0}
+@media (prefers-reduced-motion: reduce){.it.ghost,.conseq{animation:none}}
+</style>
+
+<div class="bench">
+  <div class="top"><h1>Waypoint design system <span>· workbench</span></h1><span class="state" id="state"></span></div>
+  <section class="pane comp" id="comp" aria-label="Primary action structure"></section>
+  <section class="pane inv" id="inv" aria-live="polite" aria-label="Current finding"></section>
+</div>
+
+<script>
+// Shared scenario: one established component, two findings. Each prototype renders this differently.
+const BLUE='#2563EB', BLUE_HOVER='#1D4FD7';
+const BASE={name:'Primary action',purpose:'Completes the main task on a screen.',h:40,r:6,examples:['Continue','Save changes'],screens:88,
+  status:'Approved · shipped',since:'Approved March 2024'};
+
+const FINDINGS={
+  checkout:{id:'checkout',where:'Checkout',screen:'Payment step',screens:12,label:'Pay £412',h:40,r:4,prop:'radius',
+    diff:'Corners are 4px, not 6px.',same:'Colour, label and height match.',
+    q:'Is this the same Primary action?',
+    guess:'align',guessWhy:'Checkout was built before corners moved to 6px in the 2024 refresh. Probably left behind.'},
+  search:{id:'search',where:'Search',screen:'Search bar',screens:6,label:'Search',h:48,r:6,prop:'height',
+    diff:'48px tall, not 40px.',same:'Colour, label and corners match.',
+    q:'Is this a size of Primary action?',
+    guess:'variant',guessWhy:'It sits beside a 48px search field, so the extra height looks deliberate.'},
+};
+const ORDER=['checkout','search'];
+
+// Outcomes in designer language. "alt" outcomes only appear when the designer disagrees with the suggestion.
+const OUT={
+  checkout:{
+    align:{label:'Bring it back in line',sub:'Same component. Checkout should use 6px.',
+      result:'Checkout should use the standard 6px corners.',ship:'Not shipped yet · 12 Checkout screens still use 4px',pending:true,
+      why:'Checkout predates the 6px corner change. Treated as drift to fix.'},
+    variant:{label:'Keep it as a variant',sub:'A named variant with 4px corners.',
+      result:'Adds a “Compact corners” variant with 4px corners.',ship:'Matches what’s shipped',
+      why:'A 4px-corner variant is allowed where denser UI needs it.'},
+    context:{label:'It’s Checkout’s style, on purpose',sub:'Checkout uses 4px corners everywhere.',alt:true,
+      result:'Checkout keeps 4px corners as a deliberate exception.',ship:'Matches what’s shipped',
+      why:'All of Checkout uses 4px corners to match the payment provider’s forms. Kept on purpose.'},
+    separate:{label:'It’s a different component',sub:'Paying is its own job.',alt:true,
+      result:'Creates “Payment action” as its own component.',ship:'Matches what’s shipped',
+      why:'Taking payment carries different rules from a normal primary action.'},
+    unsure:{label:'Not sure yet',sub:'Leave it open. Nothing changes.',
+      result:'Left open. Nothing changes.',ship:'',open:true,why:''},
+  },
+  search:{
+    variant:{label:'Add it as a size',sub:'Primary action gets a Large size (48px).',
+      result:'Adds Size = Large (48px) to Primary action.',ship:'Matches what’s shipped',
+      why:'Large lines up with 48px inputs, as in the search bar.'},
+    align:{label:'Bring it back in line',sub:'Search should use 40px.',
+      result:'Search should use the standard 40px height.',ship:'Not shipped yet · 6 Search screens still 48px',pending:true,
+      why:'Search should not differ. Treated as drift to fix.'},
+    context:{label:'Only in the search bar',sub:'An adaptation, not a size anyone can pick.',alt:true,
+      result:'Search bar may stretch Primary action to the field height.',ship:'Matches what’s shipped',
+      why:'Height follows the search field. Not offered as a general size.'},
+    unsure:{label:'Not sure yet',sub:'Leave it open. Nothing changes.',
+      result:'Left open. Nothing changes.',ship:'',open:true,why:''},
+  },
+};
+
+// decisions: {checkout:{k, challenged}, search:{...}}
+function libraryFrom(dec){
+  const L={variants:[{name:'Default',h:40,r:6,note:'Most screens',isNew:false}],contexts:[],fixes:[],components:[],open:[],reasons:[]};
+  for(const id of ORDER){
+    const d=dec[id];const f=FINDINGS[id];
+    if(!d||OUT[id][d.k].open){L.open.push(id);continue}
+    const o=OUT[id][d.k];
+    if(id==='checkout'&&d.k==='variant')L.variants.push({name:'Compact corners',h:40,r:4,note:'Dense layouts',isNew:true,from:id});
+    if(id==='search'&&d.k==='variant')L.variants.push({name:'Large',h:48,r:6,note:'Beside 48px inputs',isNew:true,from:id});
+    if(d.k==='context')L.contexts.push({where:f.where,rule:id==='checkout'?'4px corners':'Matches field height',from:id});
+    if(o.pending)L.fixes.push({where:f.where,text:o.ship,from:id});
+    if(d.k==='separate')L.components.push({name:'Payment action',from:id});
+    L.reasons.push({from:id,where:f.where,text:o.why,challenged:d.challenged,result:o.result});
+  }
+  return L;
+}
+function guidance(dec){
+  const g={use:['For the one action that completes the task on a screen.'],avoid:['More than one per screen.','Destructive actions.']};
+  if(dec.search&&dec.search.k==='variant')g.use.push('Use Large beside 48px inputs, such as search.');
+  if(dec.search&&dec.search.k==='context')g.use.push('In the search bar, match the field height.');
+  if(dec.checkout&&dec.checkout.k==='variant')g.use.push('Use Compact corners in dense layouts.');
+  if(dec.checkout&&dec.checkout.k==='context')g.use.push('In Checkout, corners are 4px by design.');
+  return g;
+}
+// A real-looking button specimen at any scale.
+function btn(label,h=40,r=6,scale=1,extra=''){
+  return `<span class="pbtn" style="height:${h*scale}px;border-radius:${r*scale}px;padding:0 ${18*scale}px;font-size:${14*scale}px;${extra}">${label}</span>`;
+}
+const PBTN_CSS=`.pbtn{display:inline-flex;align-items:center;justify-content:center;background:${BLUE};color:#fff;font-family:system-ui,-apple-system,'Segoe UI',sans-serif;font-weight:600;white-space:nowrap;line-height:1;box-sizing:border-box}`;
+
+document.head.insertAdjacentHTML('beforeend',`<style>${PBTN_CSS}</style>`);
+// Where each outcome lives in the component's structure.
+const ZONES=[
+  {k:'variant',title:'Variants',hint:'Sizes and styles anyone can choose'},
+  {k:'context',title:'Allowed in one area',hint:'Differences kept on purpose'},
+  {k:'align',title:'Bring back in line',hint:'The library is right; the product should change'},
+  {k:'separate',title:'Its own component',hint:'A different job'},
+];
+const SLOTTEXT={variant:'Add as a variant',context:f=>`Allow in ${f.where}`,align:'Mark to bring in line',separate:'Make it its own component'};
+const S={cur:null,dec:{},preview:null,moving:false};
+
+function chip(id){const f=FINDINGS[id];return btn(f.label,f.h,f.r,.8)}
+function renderComp(){
+  const f=S.cur&&FINDINGS[S.cur];const live=!!S.cur&&(!S.dec[S.cur]||S.moving||OUT[S.cur][S.dec[S.cur].k].open);
+  const L=libraryFrom(S.dec);
+  const zoneItems=k=>{
+    const placed=ORDER.filter(id=>S.dec[id]&&S.dec[id].k===k&&!(S.preview&&S.cur===id));
+    let html=placed.map(id=>{const o=OUT[id][k];return `<button class="it placed ${o.pending?'pending':''}" data-pick="${id}" aria-label="${FINDINGS[id].where}, placed. Select to review">${chip(id)}<b>${k==='variant'?(id==='search'?'Large':'Compact corners'):k==='separate'?'Payment action':FINDINGS[id].where}</b><small>${o.pending?'not shipped yet':'matches product'}</small></button>`}).join('');
+    if(S.preview===k&&f) html+=`<div class="it ghost">${chip(S.cur)}<b>${k==='variant'?(S.cur==='search'?'Large':'Compact corners'):k==='separate'?'Payment action':f.where}</b><span class="tagg">preview</span></div>`;
+    if(k==='variant') html=`<div class="it">${btn('Continue',40,6,.8)}<b>Default</b><small>40 · r6</small></div>`+html;
+    const offered=f&&OUT[S.cur][k];
+    if(live&&offered&&S.preview!==k) html+=`<button class="slot live" data-slot="${k}">${typeof SLOTTEXT[k]==='function'?SLOTTEXT[k](f):SLOTTEXT[k]}${k===f.guess?'<span class="sg">assistant’s suggestion</span>':''}</button>`;
+    if(!html) html='<span class="empty">Nothing here</span>';
+    return html;
+  };
+  const open=L.open;
+  document.getElementById('comp').innerHTML=`<div><span class="lbl">Component</span><h2>${BASE.name}</h2><p class="p">${BASE.purpose}</p>
+     <div class="status"><span><i style="background:var(--place)"></i>Approved · shipped on ${BASE.screens} screens</span>${L.fixes.length?`<span><i style="background:var(--wait)"></i>${L.fixes.length} agreed fix${L.fixes.length>1?'es':''} not shipped</span>`:''}</div></div>
+    ${ZONES.filter(z=>z.k!=='separate'||(f&&OUT[S.cur].separate&&live)||L.components.length).map(z=>`<div class="zone"><div class="zh"><b>${z.title}</b><span>${z.hint}</span></div><div class="items">${zoneItems(z.k)}</div></div>`).join('')}
+    <div class="zone"><div class="zh"><b>Seen in the product, not yet placed</b></div>
+      ${open.length?`<div class="tray">${open.map(id=>`<button data-pick="${id}" aria-pressed="${S.cur===id}">${chip(id)}<span>${FINDINGS[id].where}</span></button>`).join('')}</div>`:'<span class="empty">Nothing waiting. The component describes what the product does.</span>'}</div>`;
+  document.querySelectorAll('[data-slot]').forEach(b=>b.onclick=()=>{S.preview=b.dataset.slot;render()});
+  document.querySelectorAll('[data-pick]').forEach(b=>b.onclick=()=>{S.cur=b.dataset.pick;S.preview=null;S.moving=false;render()});
+}
+
+function renderInv(){
+  const I=document.getElementById('inv');
+  if(!S.cur&&!Object.keys(S.dec).length){I.innerHTML=`<div class="done"><span class="lbl">Since you last looked</span><h3>The product uses Primary action in two ways the library doesn’t describe.</h3><p style="margin:0;color:var(--ink-2);font-size:14px">Everything else matches. On the left is the component as approved today.</p><button class="keep" id="begin">Look at Checkout</button></div>`;document.getElementById('begin').onclick=()=>{S.cur='checkout';render()};return}
+  if(!S.cur){const L=libraryFrom(S.dec);
+    I.innerHTML=`<div class="done"><span class="lbl">Nothing to look at</span><h3>${L.open.length?'Pick something from the tray to continue.':'Primary action now covers every way the product uses it.'}</h3>
+      ${L.reasons.map(r=>`<div class="note">${r.where}: ${r.result}${S.dec[r.from].challenged?' You placed this somewhere other than the suggestion.':''}</div>`).join('')}
+      <p style="margin:0;color:var(--ink-2);font-size:14px">Select any placed item on the left to see why it’s there or move it.</p></div>`;return}
+  const f=FINDINGS[S.cur],d=S.dec[S.cur],placed=d&&!OUT[S.cur][d.k].open;
+  let tail='';
+  if(S.preview){const o=OUT[S.cur][S.preview];const over=S.preview!==f.guess;
+    tail=`<div class="conseq"><span class="what">${o.result}</span><ul>
+      <li>${o.pending?`${o.ship}. Nothing in the product changes until the ${f.where} team ships it.`:'The library will describe what’s already shipped. Nothing in the product changes.'}</li>
+      ${S.preview==='variant'?`<li>Designers can pick it in Figma. Usage: ${f.id==='search'?'beside 48px inputs.':'dense layouts.'}</li>`:''}
+      ${S.preview==='context'?`<li>Only ${f.where} may differ. Elsewhere stays ${f.prop==='radius'?'6px':'40px'}.</li>`:''}
+      ${S.preview==='separate'?'<li>Adds Payment action next to Primary action in the library.</li>':''}</ul>
+      ${over?'<span class="over">This isn’t what the assistant suggested. Your placement wins.</span>':''}
+      <div class="row"><button class="keep" id="keep">Keep it here</button><button class="alt" id="cancel">Try another place</button></div></div>`}
+  else if(placed&&!S.moving){const o=OUT[S.cur][d.k];
+    tail=`<div class="conseq"><span class="what">${o.result}</span><div class="note">${o.why}${d.challenged?' You chose this over the assistant’s suggestion.':''}</div>
+      <div class="row"><button class="alt" id="move">Move it</button><button class="lk" id="unplace">Take it out, decide later</button></div></div>`}
+  else tail=`<div class="ask"><b>Where does this belong in Primary action?</b><p>Choose a place on the left to preview it. The assistant suggests “${typeof SLOTTEXT[f.guess]==='function'?SLOTTEXT[f.guess](f):SLOTTEXT[f.guess]}”: ${f.guessWhy.toLowerCase()}</p><button class="lk" id="later" style="justify-self:start">Not sure, leave it in the tray</button></div>`;
+  I.innerHTML=`<span class="lbl">Seen in ${f.where} · ${f.screen} · ${f.screens} screens</span>
+    <h3>${f.diff} ${f.same}</h3>
+    <div class="cmp"><div>${btn('Continue',BASE.h,BASE.r,1.5)}<small>Primary action</small></div><div>${btn(f.label,f.h,f.r,1.5)}<small>In ${f.where}</small></div></div>
+    <div class="ctx"><div class="mini" aria-hidden="true"><div class="ln" style="width:60%"></div><div class="f"></div>${btn(f.label,f.h*.5,f.r*.5,1,'font-size:8px;padding:0 6px;outline:2px solid #F2B33D;outline-offset:2px')}</div><p>Same place on every ${f.where} screen. Introduced in the ${f.id==='checkout'?'2023 checkout rebuild':'2024 search redesign'}.</p></div>
+    ${tail}`;
+  const on=(id,fn)=>{const e=document.getElementById(id);if(e)e.onclick=fn};
+  on('keep',()=>{S.dec[S.cur]={k:S.preview,challenged:S.preview!==f.guess};S.preview=null;S.moving=false;const nxt=ORDER.find(x=>!S.dec[x]);S.cur=nxt||S.cur;render()});
+  on('cancel',()=>{S.preview=null;render()});
+  on('later',()=>{S.dec[S.cur]={k:'unsure'};S.cur=ORDER.find(x=>!S.dec[x])||null;render()});
+  on('move',()=>{S.moving=true;render()});
+  on('unplace',()=>{S.dec[S.cur]={k:'unsure'};S.moving=false;render()});
+}
+function render(){
+  const L=libraryFrom(S.dec);
+  document.getElementById('state').textContent=L.open.length?`${L.open.length} new use${L.open.length>1?'s':''} of Primary action to place`:'Primary action is up to date';
+  renderComp();renderInv();
+}
+render();
+</script>
