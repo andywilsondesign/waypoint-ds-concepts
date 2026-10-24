@@ -1,0 +1,150 @@
+[
+  {
+    "file": "01-00-overview.png",
+    "caption": "Exploration 01 overview: four concepts, research, comparison and recommendation."
+  },
+  {
+    "file": "01-A1-atlas-world.png",
+    "caption": "A · System Atlas: whole-system map. Solid land = decided, hatched = suspected, fog = unexplored. Legend lists the three places needing judgement."
+  },
+  {
+    "file": "01-A2-atlas-question.png",
+    "caption": "A · Zoomed into Actions; the evidence drawer asks whether three blue buttons are one job, with specimens, screens, observed/suspected facts and options."
+  },
+  {
+    "file": "01-A3-atlas-preview.png",
+    "caption": "A · Preview before confirming: name the role and see what changes; affected roads animate on the map."
+  },
+  {
+    "file": "01-A4-atlas-after.png",
+    "caption": "A · After three decisions: fog lifted, Primary action flagged as decided, Business themed, Book now marked as an exception. Survey log at the bottom allows undo."
+  },
+  {
+    "file": "01-B1-dialogue-start.png",
+    "caption": "B · Design Dialogue: today’s briefing. First question (one red used for errors and deals) with evidence; the emerging system on the right."
+  },
+  {
+    "file": "01-B2-dialogue-reply.png",
+    "caption": "B · After answering: the system replies with what changed and the codex gains Danger and Promotion tiles. Undo inline."
+  },
+  {
+    "file": "01-B3-dialogue-challenge.png",
+    "caption": "B · Blue buttons question with the overlay view and the “push back” panel open (pre-written challenges or free text)."
+  },
+  {
+    "file": "01-B4-dialogue-except.png",
+    "caption": "B · “Same job, except…”: the designer taps the button that doesn’t belong before confirming."
+  },
+  {
+    "file": "01-B5-dialogue-business.png",
+    "caption": "B · Follow-up question raised by the previous answer, previewing the Business portal in a partner’s brand colour."
+  },
+  {
+    "file": "01-B6-dialogue-done.png",
+    "caption": "B · Briefing complete: what changed, what remains uncertain, and the updated codex."
+  },
+  {
+    "file": "01-C1-living-start.png",
+    "caption": "C · Living System: concepts as membranes of grains (each ≈25 elements). Teal = decided, amber dashed = suspected, pink = anomaly."
+  },
+  {
+    "file": "01-C2-living-split-preview.png",
+    "caption": "C · Red selected: inspector shows evidence and a split preview; ghost targets show where grains will go."
+  },
+  {
+    "file": "01-C3-living-connect.png",
+    "caption": "C · Dragging Business onto Primary action asks what “identical” means: theme it, merge it, or leave apart."
+  },
+  {
+    "file": "01-C4-living-after.png",
+    "caption": "C · After decisions: Danger and Promotion split, Primary action confirmed, Business themed, Book now pinned as exception. History strip at the bottom."
+  },
+  {
+    "file": "01-C5-living-appearance.png",
+    "caption": "C · “By appearance” lens: grains regroup by look; glowing grains look alike but mean different things."
+  },
+  {
+    "file": "01-C6-living-history.png",
+    "caption": "C · Scrubbing history back to an earlier state, with “Continue from here” or “Back to latest”."
+  },
+  {
+    "file": "01-D1-review-start.png",
+    "caption": "D · System Review: status strip, ranked review list, and a proposal with the inventory wall of screenshots as evidence."
+  },
+  {
+    "file": "01-D2-review-variant-sheet.png",
+    "caption": "D · The proposed component as a Figma-style variant sheet, adjustable before approving with changes."
+  },
+  {
+    "file": "01-D3-review-ask.png",
+    "caption": "D · Business proposal shown as variable modes; “Ask someone” delegates to the owner."
+  },
+  {
+    "file": "01-D4-review-library.png",
+    "caption": "D · Library tab after decisions: status labels show Live, Waiting and Needs review."
+  },
+  {
+    "file": "01-D5-review-decisions.png",
+    "caption": "D · Decision records with reasons, evidence and Reopen."
+  },
+  {
+    "file": "02-00-overview.png",
+    "caption": "Exploration 02 overview: shared scenario, three prototypes, comparison and patterns."
+  },
+  {
+    "file": "02-A1-library-baseline.png",
+    "caption": "A · Library-first: the Primary action page. Two dashed cards next to Default are product uses the library doesn’t describe yet."
+  },
+  {
+    "file": "02-A2-library-review.png",
+    "caption": "A · Checkout card expanded in place: comparison, difference, context, question, suggested answer, and the “Not quite” alternatives."
+  },
+  {
+    "file": "02-A3-library-after.png",
+    "caption": "A · After both decisions: Large is a variant, Checkout is an exception, properties, usage and “Why it looks like this” all updated."
+  },
+  {
+    "file": "02-A4-library-change.png",
+    "caption": "A · Changing an earlier decision reopens the same panel with the current answer highlighted."
+  },
+  {
+    "file": "02-B1-decision-baseline.png",
+    "caption": "B · Decision-first: the component as it is today, and a single prompt to look at the first change."
+  },
+  {
+    "file": "02-B2-decision-question.png",
+    "caption": "B · One question with evidence at the scale of the difference (magnified corners), the most likely answer first and “Why?” expanded."
+  },
+  {
+    "file": "02-B3-decision-challenge.png",
+    "caption": "B · “That’s not right” reveals other readings so the designer can correct the assistant."
+  },
+  {
+    "file": "02-B4-decision-result.png",
+    "caption": "B · Result: what was decided, whether the product changes, and the updated component card."
+  },
+  {
+    "file": "02-B5-decision-search.png",
+    "caption": "B · Second question: Search height shown with measured rulers."
+  },
+  {
+    "file": "02-B6-decision-library.png",
+    "caption": "B · Library view: variants and exceptions, each change with Revisit."
+  },
+  {
+    "file": "02-C1-workbench-baseline.png",
+    "caption": "C · Workbench: the component as places a finding can go (left) and a short introduction (right)."
+  },
+  {
+    "file": "02-C2-workbench-finding.png",
+    "caption": "C · Checkout finding on the right; places on the left, one marked as the assistant’s suggestion."
+  },
+  {
+    "file": "02-C3-workbench-preview.png",
+    "caption": "C · Choosing a different place previews it live in the library with consequences, noting it overrides the suggestion."
+  },
+  {
+    "file": "02-C4-workbench-after.png",
+    "caption": "C · Both placed. Selecting the Checkout item shows its reasoning and lets you move it or take it out."
+  }
+]

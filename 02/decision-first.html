@@ -39,7 +39,7 @@ button{font:inherit;color:inherit;cursor:pointer}
 .pair figcaption{font:500 12px var(--f-mono);color:var(--ink-2)}
 .lenses{display:flex;gap:26px;justify-content:center;flex-wrap:wrap}
 .lens{display:grid;gap:8px;justify-items:center}
-.lens .c{width:120px;height:120px;border-radius:50%;overflow:hidden;position:relative;background:var(--surface);box-shadow:0 0 0 1px var(--rule)}
+.lens .c{width:120px;height:120px;border-radius:14px;overflow:hidden;position:relative;background:var(--surface);box-shadow:0 0 0 1px var(--rule)}
 .lens .c span{position:absolute;left:30px;top:30px;width:200px;height:200px;background:#2563EB}
 .lens small{font:500 12px var(--f-mono);color:var(--ink-2)}
 .lens small b{color:var(--mark);font-weight:500}
@@ -204,8 +204,8 @@ function libCard(highlight){
 
 function evidence(f){
   if(f.prop==='radius') return `<div class="lenses">
-      <div class="lens"><div class="c"><span style="border-radius:${BASE.r*8}px"></span></div><small>Primary action · 6px</small></div>
-      <div class="lens"><div class="c"><span style="border-radius:${f.r*8}px"></span></div><small>${f.where} · <b>4px</b></small></div></div>
+      <div class="lens"><div class="c"><span style="border-top-left-radius:${BASE.r*8}px"></span></div><small>Primary action · 6px corner, 8× zoom</small></div>
+      <div class="lens"><div class="c"><span style="border-top-left-radius:${f.r*8}px"></span></div><small>${f.where} · <b>4px</b></small></div></div>
       <div class="pair"><figure>${btn('Continue',BASE.h,BASE.r,1.3)}<figcaption>Primary action</figcaption></figure><figure>${btn(f.label,f.h,f.r,1.3)}<figcaption>In ${f.where}</figcaption></figure></div>`;
   return `<div class="measure"><div class="m"><span class="rule" style="height:${BASE.h*1.5}px">40</span>${btn('Continue',BASE.h,BASE.r,1.5)}</div><div class="m"><span class="rule hi" style="height:${f.h*1.5}px">48</span>${btn(f.label,f.h,f.r,1.5)}</div></div>
       <div class="pair"><figure><figcaption>Primary action</figcaption></figure><figure><figcaption>In ${f.where}, beside a 48px field</figcaption></figure></div>`;

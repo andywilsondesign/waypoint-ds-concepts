@@ -108,7 +108,7 @@ canvas{position:absolute;inset:0;width:100%;height:100%;display:block;touch-acti
 const BLUE='#2563EB',BLUE2='#2460E0',GREEN='#16A34A',RED='#EF3B3B',GREY='#8A93A0',WHITE='#E9EEF2';
 // ---------- base model ----------
 const BASE_C=[
- {id:'brand',name:'Brand blue',st:'decided',x:0.12,y:0.16,kind:'colour'},
+ {id:'brand',name:'Brand blue',st:'decided',x:0.27,y:0.13,kind:'colour'},
  {id:'greys',name:'Greys → 3 roles',st:'decided',x:0.08,y:0.62,kind:'colour'},
  {id:'red',name:'Red #DC2626',st:'suspected',x:0.3,y:0.74,kind:'colour'},
  {id:'blue',name:'Filled blue buttons',st:'suspected',x:0.42,y:0.36,kind:'component'},
@@ -130,7 +130,7 @@ const GROUPS=[
  ['fields','all','field',GREY,12,612,'field'],
  ['cards','all','card',WHITE,10,388,'card'],
 ];
-const LOOK={brand:[.12,.16,'Blue swatch'],greys:[.08,.62,'Grey'],red:[.30,.74,'Red #DC2626'],bluepill:[.50,.30,'Filled blue pill'],green:[.62,.04,'Green pill'],outline:[.68,.60,'Outlined pill'],field:[.52,1.0,'Bordered box'],card:[.90,.86,'White card']};
+const LOOK={brand:[.27,.13,'Blue swatch'],greys:[.08,.62,'Grey'],red:[.30,.74,'Red #DC2626'],bluepill:[.50,.30,'Filled blue pill'],green:[.62,.04,'Green pill'],outline:[.68,.60,'Outlined pill'],field:[.52,1.0,'Bordered box'],card:[.90,.86,'White card']};
 // dependencies; via = only the child that holds this context inherits it after a split
 const BASE_F=[['blue','brand'],['sec','brand'],['biz','brand',null,'faint'],['red','fields','Errors'],['red','cards','Deals'],['fields','greys'],['cards','greys'],['book','blue',null,'faint']];
 const SPLITNAME={Errors:'Danger',Deals:'Promotion','Trip & account':'Trip action',Checkout:'Checkout action',Search:'Search action'};

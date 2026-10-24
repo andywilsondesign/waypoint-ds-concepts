@@ -13,7 +13,7 @@ body{margin:0}[hidden]{display:none!important}img{max-width:100%}
   --sea:#DCE6EA; --sea-line:#CBD8DE; --land:#F8FAF7; --coast:#7F98A4; --contour:#C3D3D0;
   --ink:#16232C; --ink-2:#4B5D68; --ink-3:#7A8C96;
   --decided:#1F7566; --decided-bg:#E1F0EB; --suspect:#A86D08; --suspect-bg:#FAF0DA;
-  --fog:#FFFFFF; --panel:#FFFFFF; --line:#D3DEE2; --focus:#1F5FBF;
+  --fog:#C3D1D7; --panel:#FFFFFF; --line:#D3DEE2; --focus:#1F5FBF;
   --f-label:'IBM Plex Sans Condensed','Arial Narrow',system-ui,sans-serif;
   --f-body:'IBM Plex Sans',system-ui,-apple-system,sans-serif;
   --f-mono:'IBM Plex Mono',ui-monospace,Menlo,monospace;
@@ -434,7 +434,8 @@ function zoomTo(id){
   svg.classList.add('zoomed');document.getElementById('app').classList.add('is-zoomed');
   render();
 }
-function zoomOut(){S.zoom=null;W.style.transform='none';svg.classList.remove('zoomed');document.getElementById('app').classList.remove('is-zoomed');closeDrawer();render()}
+const HOME=()=>innerWidth>900?'translate(250px,40px) scale(.84)':'none';
+function zoomOut(){S.zoom=null;W.style.transform=HOME();svg.classList.remove('zoomed');document.getElementById('app').classList.remove('is-zoomed');closeDrawer();render()}
 svg.addEventListener('click',()=>{if(S.zoom&&!S.open)zoomOut()});
 
 // ---------- legend ----------
@@ -571,5 +572,5 @@ function renderLog(){
 let tt;function toast(m){const t=document.getElementById('toast');t.textContent=m;t.classList.add('show');clearTimeout(tt);tt=setTimeout(()=>t.classList.remove('show'),2800)}
 
 function render(){draw();renderLegend();renderLog()}
-render();
+W.style.transform=HOME();render();
 </script>
