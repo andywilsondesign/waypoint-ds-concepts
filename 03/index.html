@@ -1,0 +1,160 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>The Library and the Workbench</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&family=Instrument+Serif&family=Geist+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: one reading column for the argument; each study gets a row of four screenshots (library, investigation, decision, result) that widens beyond the text. */
+:root{
+  --bg:#F6F6F3; --surface:#FFFFFF; --ink:#1A1B1D; --ink-2:#5D6166; --ink-3:#93979B; --rule:#E2E2DE;
+  --a:#B4540A; --b:#4F46E5; --c:#15803D; --focus:#2563EB;
+  --f-ui:'Instrument Sans',system-ui,sans-serif; --f-display:'Instrument Serif',Georgia,serif; --f-mono:'Geist Mono',ui-monospace,monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#131415; --surface:#1B1C1E; --ink:#ECEDEE; --ink-2:#A6AAAF; --ink-3:#72767B; --rule:#2D2F32;
+  --a:#F5A35C; --b:#A5A1FF; --c:#5FD08B; --focus:#8DB0FF; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#131415; --surface:#1B1C1E; --ink:#ECEDEE; --ink-2:#A6AAAF; --ink-3:#72767B; --rule:#2D2F32;
+  --a:#F5A35C; --b:#A5A1FF; --c:#5FD08B; --focus:#8DB0FF; color-scheme:dark}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:400 16.5px/1.6 var(--f-ui)}
+[hidden]{display:none!important}
+a{color:inherit}
+:focus-visible{outline:2px solid var(--focus);outline-offset:2px}
+main{max-width:1180px;margin:0 auto;padding-block:40px 90px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));display:grid;gap:56px}
+.read{max-width:68ch}
+.eyebrow{font:500 12px var(--f-mono);letter-spacing:.08em;text-transform:uppercase;color:var(--ink-3)}
+h1{margin:8px 0 14px;font:400 clamp(38px,5.6vw,60px)/1.02 var(--f-display);letter-spacing:-.01em;text-wrap:balance}
+h2{margin:0 0 12px;font:600 24px/1.25 var(--f-ui);letter-spacing:-.015em}
+h3{margin:0;font:600 20px/1.25 var(--f-ui)}
+p{margin:0 0 12px}
+.lede{font-size:19px;color:var(--ink-2)}
+.nav{font-size:14.5px;display:flex;gap:16px;flex-wrap:wrap}
+.scen{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:12px}
+.scen div{background:var(--surface);border:1px solid var(--rule);border-radius:12px;padding:14px 16px;font-size:14.5px}
+.scen b{display:block;font-weight:600;margin-bottom:2px}
+.scen code{font:500 12.5px var(--f-mono)}
+.study{display:grid;gap:16px;border-top:3px solid var(--k);padding-top:18px}
+.study .head{display:flex;justify-content:space-between;align-items:baseline;gap:12px;flex-wrap:wrap}
+.study .tag{font:500 12px var(--f-mono);color:var(--k)}
+.study p{color:var(--ink-2);max-width:72ch;margin:0}
+.open{display:inline-block;background:var(--ink);color:var(--bg);text-decoration:none;font-weight:600;font-size:14.5px;padding:9px 15px;border-radius:9px}
+.shots{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}
+@media (max-width:860px){.shots{grid-template-columns:repeat(2,minmax(0,1fr))}}
+.shots figure{margin:0;display:grid;gap:6px}
+.shots a{display:block;aspect-ratio:16/10;border-radius:10px;overflow:hidden;border:1px solid var(--rule);background:var(--surface)}
+.shots img{width:100%;height:100%;object-fit:cover;object-position:top left;display:block}
+.shots figcaption{font-size:13px;color:var(--ink-2)}
+.shots figcaption b{color:var(--ink);font-weight:600}
+.pat{display:grid}
+.pat div{display:grid;grid-template-columns:minmax(0,270px) minmax(0,1fr);gap:18px;padding:14px 0;border-top:1px solid var(--rule)}
+.pat b{font-weight:600}
+.pat span{color:var(--ink-2);font-size:15.5px}
+@media (max-width:640px){.pat div{grid-template-columns:1fr;gap:4px}}
+.cmp-wrap{overflow-x:auto;border:1px solid var(--rule);border-radius:14px;background:var(--surface)}
+table{border-collapse:collapse;width:100%;min-width:880px;font-size:14.5px}
+th,td{text-align:left;vertical-align:top;padding:13px 16px;border-bottom:1px solid var(--rule)}
+thead th{font:500 12px var(--f-mono);letter-spacing:.06em;text-transform:uppercase;color:var(--ink-3)}
+tbody th{font-weight:600;width:170px}
+tr:last-child td,tr:last-child th{border-bottom:0}
+.dot{display:inline-block;width:9px;height:9px;border-radius:50%;background:var(--k);margin-right:8px}
+.honest{font-size:14.5px;color:var(--ink-2);border-left:3px solid var(--rule);padding-left:14px}
+</style>
+
+<main>
+  <header class="read">
+    <p class="nav"><a href="../index.html">Exploration 01</a><a href="../02/index.html">Exploration 02</a><a href="screenshots/index.html">All screenshots with captions</a></p>
+    <div class="eyebrow">UX exploration 03</div>
+    <h1>The Library and the Workbench</h1>
+    <p class="lede">Three studies of one question: how to move between a calm, explorable design system and a focused place to decide what new product evidence means, without losing your bearings.</p>
+    <p class="honest">The assistant is simulated. The grouping, counts, suggestions and “wired to” checks are scripted to show the experience, not a working analysis.</p>
+  </header>
+
+  <section>
+    <h2>The shared scenario</h2>
+    <div class="scen">
+      <div><b>Library</b>17 component families in 5 categories, two brands (Waypoint and Kestrel), and a mix of settled, open and agreed-but-not-built families.</div>
+      <div><b>Primary action</b><code>size.control.md</code> 40px · <code>radius.control</code> 6px · <code>color.action.primary</code> per brand · Default, Hover, Disabled.</div>
+      <div><b>Checkout · 12</b>4px corners, hardcoded. Everything else wired. One instance, on a refund screen, is an outlier.</div>
+      <div><b>Search · 6</b>48px to match the search field. Height and fill hardcoded; the fill only looks right.</div>
+      <div><b>Kestrel · 40</b>Teal fill from the Kestrel value of the same token. The theme working, not a new component.</div>
+      <div><b>154 match</b>Wired to tokens. Filed automatically; never shown as work.</div>
+    </div>
+  </section>
+
+  <section class="study" style="--k:var(--a)">
+    <div class="head"><div><span class="tag">A · Embedded workbench</span><h3>The workbench unfolds inside the catalogue</h3></div><a class="open" href="embedded.html">Open study A</a></div>
+    <p>The library is a grid of specimen tiles. Opening a family unfolds its workbench under that row, pointing back at the tile, so the rest of the system stays on screen. Definition on the left; observed groups on the right, each opening into an inspector in place.</p>
+    <div class="shots">
+      <figure><a href="screenshots/03-A1-library.png"><img src="screenshots/03-A1-library.png" alt="Study A library grid" loading="lazy"></a><figcaption><b>Library.</b> One sentence of condition, three filters.</figcaption></figure>
+      <figure><a href="screenshots/03-A3-inspect-checkout.png"><img src="screenshots/03-A3-inspect-checkout.png" alt="Study A Checkout inspection" loading="lazy"></a><figcaption><b>Investigation.</b> Corner circled; wiring per property.</figcaption></figure>
+      <figure><a href="screenshots/03-A6-propose-variant.png"><img src="screenshots/03-A6-propose-variant.png" alt="Study A defining the Large variant" loading="lazy"></a><figcaption><b>Decision.</b> Define Large with tokens, not the observed hex.</figcaption></figure>
+      <figure><a href="screenshots/03-A7-library-after.png"><img src="screenshots/03-A7-library-after.png" alt="Study A library after decisions" loading="lazy"></a><figcaption><b>Result.</b> Tile shows changes waiting on two teams.</figcaption></figure>
+    </div>
+  </section>
+
+  <section class="study" style="--k:var(--b)">
+    <div class="head"><div><span class="tag">B · Focus workspace</span><h3>A quiet index, then a dedicated split room</h3></div><a class="open" href="focus.html">Open study B</a></div>
+    <p>The library is a typographic index with a one-line map of every family. A family opens into a full workspace: approved on the left, observed on the right, compared property by property with visual crops. The map rides along in the top bar, so you always know where you are.</p>
+    <div class="shots">
+      <figure><a href="screenshots/03-B1-library.png"><img src="screenshots/03-B1-library.png" alt="Study B library index" loading="lazy"></a><figcaption><b>Library.</b> Map strip; group by category, need or owner.</figcaption></figure>
+      <figure><a href="screenshots/03-B3-propose-align.png"><img src="screenshots/03-B3-propose-align.png" alt="Study B property comparison" loading="lazy"></a><figcaption><b>Investigation.</b> Corner crops, height bars, wiring.</figcaption></figure>
+      <figure><a href="screenshots/03-B4-propose-variant.png"><img src="screenshots/03-B4-propose-variant.png" alt="Study B proposed variant" loading="lazy"></a><figcaption><b>Decision.</b> Large appears dashed in the approved side.</figcaption></figure>
+      <figure><a href="screenshots/03-B6-library-after.png"><img src="screenshots/03-B6-library-after.png" alt="Study B library after" loading="lazy"></a><figcaption><b>Result.</b> Entry glows, lists decisions, links to revisit.</figcaption></figure>
+    </div>
+  </section>
+
+  <section class="study" style="--k:var(--c)">
+    <div class="head"><div><span class="tag">C · Sorting table</span><h3>Piles, a belt and buckets shaped like the component</h3></div><a class="open" href="sorting.html">Open study C</a></div>
+    <p>The library is a board of family cards; unsorted evidence piles up behind the card it probably belongs to. At the table, piles ride a belt above buckets for the definition, variants, brand themes, exceptions, other families and “not sure”. Drag, or pick up and place. A live library entry shows the result before you commit.</p>
+    <div class="shots">
+      <figure><a href="screenshots/03-C1-board.png"><img src="screenshots/03-C1-board.png" alt="Study C collection board" loading="lazy"></a><figcaption><b>Library.</b> Piles behind cards show where judgement is needed.</figcaption></figure>
+      <figure><a href="screenshots/03-C3-lens.png"><img src="screenshots/03-C3-lens.png" alt="Study C closer look" loading="lazy"></a><figcaption><b>Investigation.</b> Overlay, wiring, and all 12 fanned.</figcaption></figure>
+      <figure><a href="screenshots/03-C5-propose-variant.png"><img src="screenshots/03-C5-propose-variant.png" alt="Study C variant drop" loading="lazy"></a><figcaption><b>Decision.</b> Drop into Variants; preview ghosts Large.</figcaption></figure>
+      <figure><a href="screenshots/03-C7-board-after-partner.png"><img src="screenshots/03-C7-board-after-partner.png" alt="Study C board after, Kestrel" loading="lazy"></a><figcaption><b>Result.</b> Piles gone but the set-aside outlier; Kestrel theme.</figcaption></figure>
+    </div>
+  </section>
+
+  <section>
+    <h2>Comparison</h2>
+    <div class="cmp-wrap"><table>
+      <thead><tr><th></th><th><span class="dot" style="--k:var(--a)"></span>A · Embedded</th><th><span class="dot" style="--k:var(--b)"></span>B · Focus</th><th><span class="dot" style="--k:var(--c)"></span>C · Sorting</th></tr></thead>
+      <tbody>
+        <tr><th>Orientation</th><td>Best. You never leave the catalogue; the arrow ties the workbench to its tile.</td><td>Good. You leave, but the map strip and crumb keep you placed.</td><td>Weaker. The table replaces the board; orientation comes from the bucket names.</td></tr>
+        <tr><th>Inspecting a difference</th><td>Clear: one magnified pair plus a compact wiring list.</td><td>Strongest: each property gets its own visual crop, side by side with its token.</td><td>Good at a glance (overlay) and best for spotting an outlier among many instances.</td></tr>
+        <tr><th>Making the decision</th><td>Pick a place, answer one follow-up. Feels like editing the page.</td><td>Chips in a decision bar; the approved side previews the result.</td><td>Most physical and memorable. Preview card shows the library before you drop.</td></tr>
+        <tr><th>Meaning vs wiring</th><td>“Wired to” column, hardcoded in orange.</td><td>Each crop labelled with its token or “hardcoded”.</td><td>Shown in the closer look; less visible on the pile itself.</td></tr>
+        <tr><th>Approved vs built</th><td>“Agreed, not built yet” sits in the definition, with team.</td><td>Same, plus a closing summary before you return.</td><td>Each landed pile carries “to build: team”; board marks “building”.</td></tr>
+        <tr><th>Brands</th><td>One switch re-themes every tile and the definition.</td><td>Same switch; token chain shows the brand alias.</td><td>Brand themes are a bucket, which makes “themed, not separate” very explicit.</td></tr>
+        <tr><th>Correcting</th><td>Reopen a group from its row; Undo toast.</td><td>Revisit link on the library entry; Undo toast.</td><td>“Back to belt” on any landed pile; Undo toast.</td></tr>
+        <tr><th>At scale</th><td>The page grows long when several families are open; works best one family at a time.</td><td>Scales best: the index and map handle 20+ families and grouping by owner or state.</td><td>Belt handles a few piles well; needs pile-of-piles grouping beyond ~8.</td></tr>
+      </tbody></table></div>
+  </section>
+
+  <section>
+    <h2>How volume stays manageable</h2>
+    <div class="pat">
+      <div><b>Hundreds of instances</b><span>Instances are grouped by what differs. Matching ones are filed and only counted. A designer sees a handful of groups, each with one representative and any outliers.</span></div>
+      <div><b>20 families</b><span>The library answers “what needs me?” in one sentence and one filter, or one map strip in B. Settled families stay quiet.</span></div>
+      <div><b>Several themes</b><span>Brands are values of the same tokens. One switch re-themes everything; themed instances confirm a mode rather than creating families.</span></div>
+      <div><b>Owners and teams</b><span>Agreed changes carry the owning team. B’s “group by owner” turns the same library into each team’s to-build list.</span></div>
+      <div><b>Bulk with care</b><span>Every placement states its scope (“11 of 12”) and lets an outlier stay open, so a bulk decision never hides uncertainty.</span></div>
+    </div>
+  </section>
+
+  <section>
+    <h2>Strongest patterns</h2>
+    <div class="pat">
+      <div><b>Workbench anchored to its tile (A)</b><span>Investigating in place, with a visible tie back to the library, removes the “where am I?” cost almost entirely.</span></div>
+      <div><b>Property crops with wiring labels (B)</b><span>Each property shown as a small visual (corner, height, swatch) with its token or “hardcoded” beside it. The clearest way to separate how it looks from what it is connected to.</span></div>
+      <div><b>Family map strip (B)</b><span>One line, one cell per family, coloured by state. Works as overview, navigation and orientation at once.</span></div>
+      <div><b>Buckets shaped like the component (C)</b><span>The options are the component’s own anatomy, so placing evidence visibly builds the system instead of filling a form.</span></div>
+      <div><b>Piles behind library cards (C)</b><span>Unsorted evidence lives where it probably belongs, so the library itself shows where judgement is needed.</span></div>
+      <div><b>Define the variant, don’t copy the instance (all)</b><span>Creating Large asks for its intended tokens, and the hardcoded fill is not carried over.</span></div>
+      <div><b>Scope with an exit for outliers (all)</b><span>“Applies to 11 of 12, Refund left open” keeps bulk decisions honest.</span></div>
+    </div>
+  </section>
+</main>

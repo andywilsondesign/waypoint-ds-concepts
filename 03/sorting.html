@@ -1,0 +1,447 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Waypoint Library · Sorting</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600;700&family=DM+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: a work table. The library is a board of family cards; unsorted observations pile up behind the card they probably belong to. Opening a family puts its piles on a belt above buckets shaped like the component, with a live library preview beside them. */
+:root{
+  --table:#ECEAE4; --dot:#D9D6CE; --card:#FFFFFF; --ink:#1C1B18; --ink-2:#5F5C55; --ink-3:#97938A; --rule:#DEDBD3;
+  --pile:#D97706; --pile-bg:#FDF1DC; --placed:#15803D; --placed-bg:#E3F3E8; --wait:#7C3AED; --wait-bg:#F1EAFE; --hard:#DC4A14; --focus:#2563EB; --belt:#D6D2C8;
+  --f-ui:'Sora',system-ui,sans-serif; --f-mono:'DM Mono',ui-monospace,monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --table:#17171A; --dot:#24242A; --card:#202024; --ink:#ECEBE8; --ink-2:#A9A69F; --ink-3:#74716B; --rule:#303036;
+  --pile:#F5A524; --pile-bg:#3A2A10; --placed:#5FD08B; --placed-bg:#16301F; --wait:#B79CFF; --wait-bg:#2A2147; --hard:#FF8458; --focus:#8DB0FF; --belt:#2C2C33; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --table:#17171A; --dot:#24242A; --card:#202024; --ink:#ECEBE8; --ink-2:#A9A69F; --ink-3:#74716B; --rule:#303036;
+  --pile:#F5A524; --pile-bg:#3A2A10; --placed:#5FD08B; --placed-bg:#16301F; --wait:#B79CFF; --wait-bg:#2A2147; --hard:#FF8458; --focus:#8DB0FF; --belt:#2C2C33; color-scheme:dark}
+*{box-sizing:border-box}
+body{margin:0;background:var(--table);background-image:radial-gradient(var(--dot) 1px,transparent 1.2px);background-size:18px 18px;color:var(--ink);font:400 14.5px/1.5 var(--f-ui)}
+[hidden]{display:none!important}
+button,input,select{font:inherit;color:inherit}
+button{cursor:pointer}
+:focus-visible{outline:2px solid var(--focus);outline-offset:2px}
+.page{max-width:1320px;margin:0 auto;padding-block:20px 60px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));display:grid;gap:20px}
+.top{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
+.top h1{margin:0;font:600 16px var(--f-ui)}
+.top h1 span{color:var(--ink-3);font-weight:400}
+.lbl{font:500 11px var(--f-mono);letter-spacing:.07em;text-transform:uppercase;color:var(--ink-3)}
+.tok{font:500 11.5px var(--f-mono);background:var(--table);border-radius:5px;padding:1px 6px;white-space:nowrap}
+.tok.new{background:var(--placed-bg);color:var(--placed)}
+.brand{display:flex;gap:2px;background:var(--card);border-radius:999px;padding:3px;box-shadow:0 1px 2px rgba(0,0,0,.08)}
+.brand button{border:0;background:none;border-radius:999px;padding:5px 12px;font-size:13px;color:var(--ink-2);display:flex;gap:6px;align-items:center}
+.brand button i{width:9px;height:9px;border-radius:50%}
+.brand button[aria-pressed="true"]{background:var(--ink);color:var(--card)}
+.say{font:500 clamp(20px,2.6vw,26px)/1.3 var(--f-ui);letter-spacing:-.015em;margin:0;max-width:44ch;text-wrap:balance}
+.say b{font-weight:700}
+.note{font-size:12.5px;color:var(--ink-3)}
+/* board */
+.board{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:26px}
+.cluster{display:grid;gap:10px;align-content:start}
+.cluster h2{margin:0;font:500 11.5px var(--f-mono);letter-spacing:.07em;text-transform:uppercase;color:var(--ink-3)}
+.cards{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.fc{all:unset;cursor:pointer;position:relative;background:var(--card);border-radius:12px;padding:10px;display:grid;gap:8px;box-shadow:0 1px 2px rgba(0,0,0,.08),0 4px 10px -6px rgba(0,0,0,.15);min-height:96px;align-content:space-between}
+.fc:hover{transform:translateY(-1px)}
+.fc:focus-visible{outline:2px solid var(--focus)}
+.fc .sp{height:44px;display:flex;align-items:center;justify-content:center;gap:4px;overflow:hidden;zoom:.78}
+.fc b{font-weight:600;font-size:12.5px}
+.fc.piled{box-shadow:5px 5px 0 -1px var(--pile-bg),5px 5px 0 0 var(--pile),10px 10px 0 -1px var(--pile-bg),10px 10px 0 0 var(--pile)}
+.fc .pn{position:absolute;top:-8px;right:-8px;background:var(--pile);color:var(--card);font:700 11px var(--f-mono);border-radius:999px;padding:2px 7px}
+.fc .wt{position:absolute;top:-8px;right:-8px;background:var(--wait);color:var(--card);font:600 10.5px var(--f-mono);border-radius:999px;padding:2px 7px}
+.fc.changed{animation:hop 1.8s ease}
+@keyframes hop{0%,30%{box-shadow:0 0 0 4px var(--placed-bg),0 0 0 2px var(--placed)}}
+.cards .fc{isolation:isolate}
+/* sorting table */
+.sort{display:grid;grid-template-columns:minmax(0,1fr) 320px;gap:18px;align-items:start}
+@media (max-width:980px){.sort{grid-template-columns:minmax(0,1fr)}}
+.belt{background:repeating-linear-gradient(90deg,var(--belt) 0 2px,transparent 2px 26px),var(--card);border-radius:16px;padding:26px 18px 18px;display:flex;gap:22px;align-items:flex-end;min-height:170px;overflow-x:auto;box-shadow:inset 0 -6px 0 var(--belt)}
+.stack{all:unset;cursor:grab;position:relative;width:170px;flex:none;display:grid;gap:6px;padding:12px;background:var(--card);border-radius:12px;box-shadow:0 2px 6px rgba(0,0,0,.12);isolation:isolate;transition:transform .2s}
+.stack::before,.stack::after{content:"";position:absolute;inset:0;background:var(--card);border-radius:12px;box-shadow:0 1px 3px rgba(0,0,0,.1);z-index:-1}
+.stack::before{transform:translate(5px,-5px) rotate(2deg)}.stack::after{transform:translate(9px,-9px) rotate(4deg);opacity:.7}
+.stack:focus-visible{outline:2px solid var(--focus)}
+.stack.held{transform:translateY(-10px) rotate(-2deg);box-shadow:0 14px 30px -10px rgba(0,0,0,.35);outline:2px solid var(--pile)}
+.stack .sp{height:60px;display:flex;align-items:center;justify-content:center;background:var(--table);border-radius:8px}
+.stack b{font-size:13px;font-weight:600}
+.stack small{font-size:12px;color:var(--ink-2)}
+.stack .n{position:absolute;top:-9px;left:-9px;background:var(--pile);color:var(--card);font:700 11.5px var(--f-mono);border-radius:999px;padding:2px 8px}
+.stack .look{all:unset;cursor:pointer;font-size:12px;color:var(--ink-2);text-decoration:underline;text-underline-offset:3px}
+.stack.matched{cursor:default;opacity:.55}
+.stack.matched .n{background:var(--ink-3)}
+.belthint{font-size:12.5px;color:var(--ink-3);align-self:center;flex:0 0 170px}
+.buckets{display:grid;grid-template-columns:1.2fr 1fr 1fr;gap:14px;margin-top:18px}
+@media (max-width:720px){.buckets{grid-template-columns:1fr}}
+.bucket{background:var(--card);border-radius:16px;padding:14px;display:grid;gap:10px;align-content:start;border:2px solid transparent;transition:border-color .2s,background .2s;min-height:150px;position:relative}
+.bucket.target{border-color:var(--pile);border-style:dashed;cursor:pointer}
+.bucket.target:hover,.bucket.over{background:var(--pile-bg)}
+.bucket.def{grid-row:span 2}
+.bucket h3{margin:0;font:600 14px var(--f-ui);display:flex;justify-content:space-between;gap:8px}
+.bucket h3 small{font:400 12px var(--f-ui);color:var(--ink-3)}
+.bucket .hint{font-size:12.5px;color:var(--ink-2)}
+.slotrow{display:flex;gap:8px;flex-wrap:wrap}
+.slot{background:var(--table);border-radius:10px;padding:8px 10px;display:grid;gap:5px;justify-items:center;min-width:96px;font-size:12px;color:var(--ink-2);text-align:center}
+.slot.new{background:none;border:1.5px dashed var(--rule);color:var(--ink-3);min-height:76px;place-content:center}
+.chipt{display:flex;gap:6px;flex-wrap:wrap;font-size:12px;color:var(--ink-2)}
+.landed{display:grid;grid-template-columns:auto 1fr auto;gap:10px;align-items:center;background:var(--placed-bg);border-radius:10px;padding:8px 10px;font-size:12.5px;animation:land .45s cubic-bezier(.2,1.4,.4,1)}
+@keyframes land{from{transform:translateY(-30px) scale(.9);opacity:0}}
+.landed b{font-weight:600}
+.landed small{display:block;color:var(--ink-2)}
+.landed .wait{color:var(--wait)}
+.landed button{all:unset;cursor:pointer;font-size:12px;color:var(--ink-2);text-decoration:underline}
+.landed button:focus-visible{outline:2px solid var(--focus)}
+.elsewhere{grid-column:1/-1;display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px}
+.mini-b{min-height:auto;padding:10px 12px}
+.pop{position:absolute;left:0;width:min(340px,86vw);top:100%;margin-top:8px;z-index:6;background:var(--card);border:1.5px solid var(--ink);border-radius:14px;padding:14px;display:grid;gap:10px;box-shadow:0 20px 40px -18px rgba(0,0,0,.4);animation:land .3s ease;min-width:260px}
+.pop .q{font-weight:600}
+.pop label{display:block;font-size:13px;line-height:1.7}
+.pop label input{margin:0 8px 0 0;vertical-align:-2px}
+.pop input[type=text]{border:1px solid var(--rule);border-radius:7px;padding:5px 8px;background:var(--table);width:130px}
+.pop .scope{font-size:12.5px;color:var(--ink-2)}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.go{background:var(--ink);color:var(--card);border:0;border-radius:9px;padding:8px 14px;font-weight:600;font-size:13.5px}
+.ghost{background:none;border:1px solid var(--rule);border-radius:9px;padding:8px 12px;font-size:13.5px}
+/* preview */
+.preview{position:sticky;top:16px;background:var(--card);border-radius:16px;padding:16px;display:grid;gap:12px;box-shadow:0 1px 2px rgba(0,0,0,.06)}
+.preview h3{margin:0;font:700 18px var(--f-ui)}
+.preview .pv{background:var(--table);border-radius:10px;padding:14px;display:flex;gap:10px;flex-wrap:wrap;justify-content:center}
+.preview .vv{display:grid;gap:4px;justify-items:center;font-size:11.5px;color:var(--ink-2)}
+.preview .vv.ghostv{opacity:.65;outline:1.5px dashed var(--pile);outline-offset:4px;border-radius:6px}
+.preview ul{margin:0;padding-left:16px;font-size:13px;display:grid;gap:4px}
+.preview .w{font-size:12.5px;background:var(--wait-bg);border-radius:9px;padding:8px 10px}
+.preview .w b{color:var(--wait);font-weight:600}
+.preview .prop{display:flex;justify-content:space-between;font-size:12.5px;padding:5px 0;border-bottom:1px solid var(--rule)}
+.proposedtag{font:600 10.5px var(--f-mono);color:var(--pile);text-transform:uppercase;letter-spacing:.06em}
+/* lens overlay */
+.lensbox{position:fixed;inset:0;background:rgba(20,18,14,.35);display:grid;place-items:center;z-index:20;padding:16px}
+.lenscard{background:var(--card);border-radius:18px;padding:22px;max-width:560px;width:100%;display:grid;gap:14px;box-shadow:0 30px 60px -20px rgba(0,0,0,.45);max-height:90vh;overflow:auto}
+.lenscard h3{margin:0;font:700 19px var(--f-ui)}
+.overlay{background:var(--table);border-radius:12px;height:170px;display:grid;place-items:center;position:relative}
+.overlay > span{grid-area:1/1}
+.overlay .o2 .spx-pa{background:transparent!important;color:transparent!important;box-shadow:inset 0 0 0 2px var(--hard)}
+.overlay .callout{position:absolute;font:500 12px var(--f-mono);color:var(--hard)}
+.plist2{display:grid}
+.plist2 div{display:grid;grid-template-columns:80px 1fr auto;gap:10px;font-size:13px;padding:7px 0;border-bottom:1px solid var(--rule);align-items:center}
+.plist2 .d{color:var(--hard);font-weight:600}
+.fan{display:flex;gap:6px;flex-wrap:wrap}
+.fan span{display:grid;gap:3px;font-size:10.5px;color:var(--ink-2);justify-items:center}
+.fan span.out{outline:2px dashed var(--pile);outline-offset:3px;border-radius:8px}
+.toast{position:fixed;left:50%;bottom:calc(18px + env(safe-area-inset-bottom,0px));transform:translate(-50%,20px);opacity:0;background:var(--ink);color:var(--card);padding:10px 12px 10px 16px;border-radius:10px;display:flex;gap:12px;align-items:center;font-size:13.5px;transition:.3s;z-index:30;max-width:calc(100% - 32px)}
+.toast.show{opacity:1;transform:translate(-50%,0)}
+.toast:not(.show){visibility:hidden;transition:.3s,visibility 0s .3s}
+.toast button{background:none;border:1px solid currentColor;color:inherit;border-radius:6px;padding:3px 9px;font-size:12.5px}
+@media (prefers-reduced-motion: reduce){.landed,.pop,.fc.changed{animation:none}.toast,.stack{transition:none}}
+</style>
+
+<div class="page" id="app"></div>
+<div class="toast" id="toast" role="status"><span id="tmsg"></span><button id="tundo">Undo</button></div>
+
+<script>
+// ===== Shared scenario for Exploration 03. Every concept renders this same model. =====
+// The "assistant" is simulated: groupings, guesses and counts are scripted.
+
+const THEMES={
+  consumer:{name:'Waypoint',p:'#2563EB',ph:'#1D4FD7',pd:'#A9BEF0',alias:'blue.600',aliasH:'blue.700'},
+  partner:{name:'Kestrel',p:'#0F766E',ph:'#0B5D56',pd:'#9CCFC8',alias:'kestrel.teal.700',aliasH:'kestrel.teal.800'},
+};
+const CATS=['Actions','Inputs','Navigation','Feedback','Containers'];
+// state: settled | needs (findings need judgement) | waiting (agreed, not yet built)
+const FAMILIES=[
+  {id:'primary',name:'Primary action',cat:'Actions',owner:'Design system',uses:212},
+  {id:'secondary',name:'Secondary action',cat:'Actions',uses:401},
+  {id:'iconbtn',name:'Icon button',cat:'Actions',uses:288},
+  {id:'link',name:'Text link',cat:'Actions',uses:330},
+  {id:'field',name:'Text field',cat:'Inputs',uses:612,needs:{n:1,text:'Search field is 48px'}},
+  {id:'select',name:'Select',cat:'Inputs',uses:140},
+  {id:'checkbox',name:'Checkbox',cat:'Inputs',uses:96},
+  {id:'toggle',name:'Toggle',cat:'Inputs',uses:58},
+  {id:'date',name:'Date picker',cat:'Inputs',uses:44,waiting:{text:'Merge 3 date pickers into one',team:'Booking team'}},
+  {id:'header',name:'Header',cat:'Navigation',uses:212},
+  {id:'tabs',name:'Tab bar',cat:'Navigation',uses:180},
+  {id:'crumb',name:'Breadcrumb',cat:'Navigation',uses:38},
+  {id:'alert',name:'Alert',cat:'Feedback',uses:74},
+  {id:'toast',name:'Toast',cat:'Feedback',uses:51},
+  {id:'badge',name:'Badge',cat:'Feedback',uses:166,needs:{n:1,text:'Deal badge reuses error red'}},
+  {id:'card',name:'Trip card',cat:'Containers',uses:388,waiting:{text:'Card padding 16 → 20',team:'Trips team'}},
+  {id:'modal',name:'Modal',cat:'Containers',uses:27},
+];
+const TOTAL_OBS=214; // observed instances across the product that the assistant grouped
+
+const BASE={
+  purpose:'Completes the principal task on a screen.',
+  props:[
+    {k:'height',label:'Height',token:'size.control.md',value:'40px'},
+    {k:'radius',label:'Corners',token:'radius.control',value:'6px',alias:'radius.md'},
+    {k:'color',label:'Fill',token:'color.action.primary',value:'theme'},
+    {k:'label',label:'Label',token:'type.label.md',value:'15 / semibold'},
+  ],
+  states:['Default','Hover','Disabled'],
+};
+
+// Observation groups for Primary action. Matching instances are grouped, not listed.
+const MATCHING={count:154,themed:0};
+const OBS={
+  checkout:{id:'checkout',where:'Checkout',team:'Checkout team',count:12,label:'Pay £412',theme:'consumer',
+    title:'Corners are 4px',short:'4px corners',
+    props:{height:{v:'40px',token:'size.control.md'},radius:{v:'4px',hard:'border-radius: 4px'},color:{v:'theme',token:'color.action.primary'},label:{v:'15 / semibold',token:'type.label.md'}},
+    diff:'radius',guess:'align',
+    why:'Only the corners differ, and they are hardcoded. Everything else uses tokens, so this looks like a missed update.',
+    outlier:{screen:'Refund confirmation',text:'1 of the 12 is on a refund screen with a different layout.'},
+    src:'checkout/PayButton.tsx · line 42',screens:['Payment','Review order','Add card','Refund confirmation']},
+  search:{id:'search',where:'Search',team:'Search team',count:6,label:'Search',theme:'consumer',
+    title:'Height is 48px',short:'48px tall',
+    props:{height:{v:'48px',hard:'height: 48px'},radius:{v:'6px',token:'radius.control'},color:{v:'#2563EB',hard:'background: #2563EB'},label:{v:'15 / semibold',token:'type.label.md'}},
+    diff:'height',guess:'variant',
+    why:'It lines up with the 48px search field beside it, so the height looks deliberate. Its fill looks right but is hardcoded, not the token.',
+    src:'search/SearchBar.tsx · line 88',screens:['Search bar','Filters','Destination search']},
+  partner:{id:'partner',where:'Partner portal',team:'Partner team',count:40,label:'Approve',theme:'partner',
+    title:'Fill is teal',short:'teal fill',
+    props:{height:{v:'40px',token:'size.control.md'},radius:{v:'6px',token:'radius.control'},color:{v:'theme',token:'color.action.primary',mode:'Kestrel'},label:{v:'15 / semibold',token:'type.label.md'}},
+    diff:'color',guess:'theme',
+    why:'The teal comes from the Kestrel value of the same colour token. This is the theme working, not a new component.',
+    src:'partner/ApproveBar.tsx · line 17',screens:['Approvals','Expenses','Trip requests']},
+};
+const OBS_ORDER=['checkout','search','partner'];
+
+// Places a finding can go. "Other" redirects to another family or a new one.
+const PLACES={
+  align:{label:'Bring into line',sub:'Same as the definition. The product should change.'},
+  variant:{label:'New variant',sub:'A deliberate option of this component.'},
+  theme:{label:'Brand theme',sub:'Same component, expressed through a theme.'},
+  exception:{label:'Allowed exception',sub:'A difference kept on purpose, in one place.'},
+  other:{label:'Another component',sub:'It belongs to a different family.'},
+  open:{label:'Leave open',sub:'Not sure yet. Nothing changes.'},
+};
+
+// decision shape: {place, variantName, heightToken, keepHardColor, exceptionScope, otherTarget, excludeOutlier}
+function hexOf(theme){return THEMES[theme].p}
+function derive(dec){
+  const out={variants:[{name:'Default',height:'size.control.md',h:40,isNew:false}],exceptions:[],work:[],themes:{partner:'defined'},
+    open:[],decided:[],related:[]};
+  for(const id of OBS_ORDER){
+    const d=dec[id],o=OBS[id];
+    if(!d||d.place==='open'){out.open.push(id);continue}
+    out.decided.push(id);
+    const n=o.count-(d.excludeOutlier&&o.outlier?1:0);
+    if(d.excludeOutlier&&o.outlier)out.open.push(id+':outlier');
+    if(d.place==='align')out.work.push({id,team:o.team,n,where:o.where,text:`Replace hardcoded ${o.props[o.diff].v} ${o.diff==='radius'?'corners':'height'} with ${BASE.props.find(p=>p.k===o.diff).token}`});
+    if(d.place==='variant'){
+      out.variants.push({name:d.variantName||'Large',height:d.heightToken||'size.control.lg',h:48,isNew:true,from:id});
+      const fixes=['use Primary action / '+(d.variantName||'Large')];
+      if(d.heightToken!=='hard')fixes.push('height → '+(d.heightToken||'size.control.lg'));
+      if(!d.keepHardColor)fixes.push('fill → color.action.primary');
+      out.work.push({id,team:o.team,n,where:o.where,text:fixes.join(', ')});
+    }
+    if(d.place==='exception')out.exceptions.push({id,where:o.where,scope:d.exceptionScope||o.where,text:o.short});
+    if(d.place==='theme')out.themes.partner='verified';
+    if(d.place==='other')out.related.push({id,target:d.otherTarget||'New component'});
+  }
+  return out;
+}
+function familyState(fid,dec){
+  const f=FAMILIES.find(x=>x.id===fid);
+  if(fid!=='primary')return f.needs?'needs':f.waiting?'waiting':'settled';
+  const L=derive(dec);
+  if(L.open.length)return 'needs';
+  if(L.work.length)return 'waiting';
+  return 'settled';
+}
+function counts(dec){
+  const c={settled:0,needs:0,waiting:0};FAMILIES.forEach(f=>c[familyState(f.id,dec)]++);return c;
+}
+function primaryOpenCount(dec){return derive(dec).open.filter(x=>!x.includes(':')).length+derive(dec).open.filter(x=>x.includes(':')).length}
+
+// ----- specimens: real-looking UI at small scale. Theme colours come from CSS vars --p/--ph/--pd. -----
+function themeVars(t){const T=THEMES[t];return `--p:${T.p};--ph:${T.ph};--pd:${T.pd};`}
+function pa(label='Continue',{h=40,r=6,fill='var(--p)',scale=1,state='Default',extra=''}={}){
+  const bg=state==='Hover'?'var(--ph)':state==='Disabled'?'var(--pd)':fill;
+  return `<span class="spx-pa" style="height:${h*scale}px;border-radius:${r*scale}px;padding:0 ${16*scale}px;font-size:${14*scale}px;background:${bg};${extra}">${label}</span>`;
+}
+function specimen(fid){
+  const s={
+    primary:pa('Continue',{scale:.8}),
+    secondary:`<span class="spx-pa" style="height:32px;border-radius:5px;padding:0 13px;font-size:11px;background:#fff;color:var(--p);box-shadow:inset 0 0 0 1.5px var(--p)">Edit trip</span>`,
+    iconbtn:`<span class="spx-ib">♡</span><span class="spx-ib">⤴</span>`,
+    link:`<span style="color:var(--p);text-decoration:underline;font:500 12px system-ui">View details</span>`,
+    field:`<span class="spx-field">Where to?</span>`,
+    select:`<span class="spx-field">2 adults <i style="margin-left:auto;font-style:normal">▾</i></span>`,
+    checkbox:`<span class="spx-cb on">✓</span><span style="font:12px system-ui;color:#3B4048">Flexible dates</span>`,
+    toggle:`<span class="spx-tg"><i></i></span>`,
+    date:`<span class="spx-cal">${Array.from({length:14},(_,i)=>`<i class="${i===9?'on':''}">${i+8}</i>`).join('')}</span>`,
+    header:`<span class="spx-hd"><b>waypoint</b><i></i><i></i></span>`,
+    tabs:`<span class="spx-tabs"><i class="on">Trips</i><i>Saved</i><i>Profile</i></span>`,
+    crumb:`<span style="font:11px system-ui;color:#5B6169">Trips › Lisbon › <b style="color:#1B1D21">Hotel</b></span>`,
+    alert:`<span class="spx-alert">Passport expires before your trip.</span>`,
+    toast:`<span class="spx-toast">Saved to Lisbon</span>`,
+    badge:`<span class="spx-badge" style="background:#DC2626">DEAL</span><span class="spx-badge" style="background:#E8EAEE;color:#3B4048">2 nights</span>`,
+    card:`<span class="spx-card"><i></i><b>Lisbon</b><small>12–16 May</small></span>`,
+    modal:`<span class="spx-modal"><b>Cancel trip?</b><i></i><i style="width:40%"></i></span>`,
+  };
+  return s[fid]||'';
+}
+const SPX_CSS=`
+.spx-pa{display:inline-flex;align-items:center;justify-content:center;color:#fff;font-family:system-ui,-apple-system,'Segoe UI',sans-serif;font-weight:600;white-space:nowrap;line-height:1;box-sizing:border-box;transition:background .4s,border-radius .4s,height .4s}
+.spx-ib{display:inline-grid;place-items:center;width:30px;height:30px;border-radius:50%;background:#EEF1F5;color:#3B4048;font:14px system-ui;margin:0 2px}
+.spx-field{display:inline-flex;align-items:center;width:130px;height:30px;border:1px solid #C9CFD6;border-radius:6px;background:#fff;color:#7B8188;font:11.5px system-ui;padding:0 9px;box-sizing:border-box}
+.spx-cb{display:inline-grid;place-items:center;width:16px;height:16px;border-radius:4px;border:1.5px solid #9AA1AA;margin-right:6px;font:700 10px system-ui;color:#fff}
+.spx-cb.on{background:var(--p);border-color:var(--p)}
+.spx-tg{display:inline-block;width:34px;height:20px;border-radius:10px;background:var(--p);position:relative}.spx-tg i{position:absolute;right:2px;top:2px;width:16px;height:16px;border-radius:50%;background:#fff}
+.spx-cal{display:grid;grid-template-columns:repeat(7,14px);gap:2px}.spx-cal i{font:9px/14px system-ui;text-align:center;font-style:normal;color:#5B6169;border-radius:3px}.spx-cal i.on{background:var(--p);color:#fff}
+.spx-hd{display:flex;align-items:center;gap:8px;width:150px;height:28px;background:#fff;border-bottom:1px solid #E1E4E8;padding:0 8px;box-sizing:border-box}.spx-hd b{font:700 11px system-ui;color:var(--p);margin-right:auto}.spx-hd i{width:16px;height:16px;border-radius:50%;background:#E5E8EC}
+.spx-tabs{display:flex;gap:2px;background:#fff;border-top:1px solid #E1E4E8;padding:4px}.spx-tabs i{font:500 10px system-ui;font-style:normal;color:#7B8188;padding:4px 7px;border-radius:5px}.spx-tabs i.on{color:var(--p);background:#EEF2FB}
+.spx-alert{display:block;width:150px;font:11px/1.35 system-ui;color:#7A4A00;background:#FDF3DC;border-left:3px solid #D99A1C;padding:6px 8px;border-radius:4px;box-sizing:border-box}
+.spx-toast{display:inline-block;font:500 11px system-ui;color:#fff;background:#1F2328;padding:7px 11px;border-radius:7px}
+.spx-badge{display:inline-block;font:700 9.5px system-ui;color:#fff;padding:3px 6px;border-radius:3px;margin:0 2px;letter-spacing:.03em}
+.spx-card{display:grid;width:96px;background:#fff;border-radius:8px;box-shadow:0 1px 3px rgba(0,0,0,.12);overflow:hidden}.spx-card i{height:34px;background:linear-gradient(135deg,#9CC3D5,#D7E5D0)}.spx-card b{font:600 10.5px system-ui;color:#1B1D21;padding:5px 7px 0}.spx-card small{font:9.5px system-ui;color:#6B7076;padding:0 7px 6px}
+.spx-modal{display:grid;gap:5px;width:120px;background:#fff;border-radius:8px;padding:9px;box-shadow:0 4px 14px rgba(0,0,0,.15)}.spx-modal b{font:600 11px system-ui;color:#1B1D21}.spx-modal i{height:5px;border-radius:3px;background:#E3E6EA}
+`;
+// A tiny product screen showing where an instance sits. Highlight ring marks the instance.
+function screen(obsId,{h=1}={}){
+  const o=OBS[obsId];const r=o.props.radius.v==='4px'?4:6;const ht=o.props.height.v==='48px'?48:40;
+  const fill=o.theme==='partner'?THEMES.partner.p:THEMES.consumer.p;
+  const top=obsId==='partner'?'<i class="scr-bar" style="background:#334155"></i>':'<i class="scr-bar"></i>';
+  const body=obsId==='search'?'<span style="display:flex;gap:4px;align-items:center"><i class="scr-in" style="height:24px;flex:1"></i>'+`<span class="spx-pa scr-hl" style="height:24px;border-radius:3px;padding:0 7px;font-size:8px;background:${fill}">${o.label}</span></span><i class="scr-img"></i>`
+    :`<i class="scr-img"></i><i class="scr-ln" style="width:70%"></i><i class="scr-ln" style="width:45%"></i><span class="spx-pa scr-hl" style="height:${ht*.5}px;border-radius:${r*.5}px;padding:0 8px;font-size:8px;background:${fill};margin-top:4px">${o.label}</span>`;
+  return `<span class="scr">${top}${body}</span>`;
+}
+const SCR_CSS=`.scr{display:grid;gap:4px;width:120px;background:#fff;border:1px solid #DDE1E5;border-radius:8px;padding:7px;box-sizing:border-box;align-content:start}
+.scr-bar{display:block;height:6px;border-radius:3px;background:#E4E7EB}.scr-img{display:block;height:30px;border-radius:4px;background:linear-gradient(135deg,#A9CBD9,#DCE8D4)}
+.scr-ln{display:block;height:4px;border-radius:2px;background:#E4E7EB}.scr-in{display:block;border:1px solid #CFD5DB;border-radius:3px;background:#fff}
+.scr-hl{outline:2px solid #F2B33D;outline-offset:2px}`;
+document.head.insertAdjacentHTML('beforeend',`<style>${SPX_CSS}${SCR_CSS}</style>`);
+
+const S={view:'board',theme:'consumer',held:null,pending:null,draft:{},dec:{},lens:null,changed:null,over:null};
+// Which bucket accepts which place
+const BUCKET_PLACE={def:'align',variants:'variant',themes:'theme',exceptions:'exception',other:'other',open:'open'};
+
+function brandSwitch(){return `<div class="brand" role="group" aria-label="Brand">${Object.entries(THEMES).map(([k,t])=>`<button data-theme="${k}" aria-pressed="${S.theme===k}"><i style="background:${t.p}"></i>${t.name}</button>`).join('')}</div>`}
+
+// ---------- board ----------
+function pilesFor(f){
+  if(f.id==='primary'){const L=derive(S.dec);return L.open.length}
+  return f.needs?f.needs.n:0;
+}
+function boardView(){
+  const c=counts(S.dec);const piles=FAMILIES.reduce((n,f)=>n+pilesFor(f),0);
+  return `<div class="top"><h1>Waypoint design system <span>· collection</span></h1>${brandSwitch()}</div>
+    <p class="say">${piles?`<b>${piles} small piles</b> of new observations are waiting by the cards they probably belong to.`:'Every observation has a place.'} ${c.waiting?`${c.waiting} families have agreed changes on the way.`:''}</p>
+    <span class="note">${TOTAL_OBS} instances observed this week, sorted into piles by the assistant (simulated). Instances that already match are filed automatically.</span>
+    <div class="board" style="${themeVars(S.theme)}">${CATS.map(cat=>`<section class="cluster"><h2>${cat}</h2><div class="cards">${FAMILIES.filter(f=>f.cat===cat).map(f=>{
+      const p=pilesFor(f);const st=familyState(f.id,S.dec);
+      return `<button class="fc ${p?'piled':''} ${S.changed===f.id?'changed':''}" data-open="${f.id}" aria-label="${f.name}${p?`, ${p} piles`:''}">${p?`<span class="pn">${p}</span>`:st==='waiting'?'<span class="wt">building</span>':''}<span class="sp">${specimen(f.id)}</span><b>${f.name}</b></button>`}).join('')}</div></section>`).join('')}</div>`;
+}
+
+// ---------- sorting table ----------
+function stackHTML(id){
+  const o=OBS[id];
+  return `<div class="stack ${S.held===id?'held':''}" draggable="true" data-stack="${id}" tabindex="0" role="button" aria-label="${o.where} pile, ${o.count} instances. Press Enter to pick up" style="${themeVars(o.theme)}">
+    <span class="n">${o.count}</span><span class="sp">${pa(o.label,{h:parseInt(o.props.height.v),r:parseInt(o.props.radius.v),scale:.9})}</span>
+    <b>${o.where}</b><small>${o.short} · ${o.team}</small><button class="look" data-lens="${id}">Look closer</button></div>`;
+}
+function landedHTML(id){
+  const o=OBS[id],d=S.dec[id];const L=derive(S.dec);const w=L.work.find(x=>x.id===id);
+  const what=d.place==='variant'?`${d.variantName||'Large'} variant`:d.place==='exception'?`Exception · ${d.exceptionScope||o.where}`:d.place==='other'?`Moved to ${d.otherTarget||'Secondary action'}`:d.place==='theme'?'Kestrel brand':'Follows the definition';
+  return `<div class="landed" style="${themeVars(o.theme)}">${pa(o.label,{h:parseInt(o.props.height.v),r:parseInt(o.props.radius.v),scale:.5})}<span><b>${o.where} · ${w?w.n:o.count}</b><small>${what}${w?` · <span class="wait">to build: ${o.team}</span>`:''}</small></span><button data-return="${id}">back to belt</button></div>`;
+}
+function bucket(key,title,sub,body,cls=''){
+  const placed=OBS_ORDER.filter(id=>S.dec[id]&&BUCKET_PLACE[key]===S.dec[id].place);
+  const target=S.held?'target':'';
+  const pop=S.pending&&S.pending.bucket===key?popHTML():'';
+  return `<div class="bucket ${cls} ${target} ${S.over===key?'over':''}" data-bucket="${key}" ${S.held?`role="button" tabindex="0" aria-label="Place in ${title}"`:''}>
+    <h3>${title}<small>${sub}</small></h3>${body}${placed.map(landedHTML).join('')}${pop}</div>`;
+}
+function popHTML(){
+  const id=S.pending.id,o=OBS[id],place=BUCKET_PLACE[S.pending.bucket],D=S.draft;let q='';
+  if(place==='align')q=`<span class="q">${o.where} will follow <span class="tok">${BASE.props.find(p=>p.k===o.diff).token}</span>.</span>${o.outlier?`<label><input type="checkbox" id="excl" ${D.excludeOutlier?'checked':''}> Leave “${o.outlier.screen}” out for now</label>`:''}`;
+  if(place==='variant')q=`<span class="q">Name and define the variant</span><label>Name <input type="text" id="vname" value="${D.variantName||'Large'}"></label>
+    <label><input type="checkbox" checked disabled> Height from new token <span class="tok new">size.control.lg</span></label>
+    <label><input type="checkbox" checked disabled> Fill from <span class="tok">color.action.primary</span>, not the observed hardcoded hex</label>`;
+  if(place==='exception')q=`<span class="q">Where does the exception apply?</span><label><input type="radio" name="sc" value="${o.where}" checked> All of ${o.where}</label><label><input type="radio" name="sc" value="${o.screens[0]}"> ${o.screens[0]} only</label>`;
+  if(place==='other')q=`<span class="q">${S.pending.target||'Secondary action'}</span><span class="scope">The pile moves to that family’s table.</span>`;
+  if(place==='theme')q=`<span class="q">Kestrel expression of Primary action.</span><span class="scope">No new component. The token’s Kestrel value is used.</span>`;
+  if(place==='open')q=`<span class="q">Park it unsorted.</span>`;
+  const n=o.count-(place==='align'&&D.excludeOutlier&&o.outlier?1:0);const work=place==='align'||place==='variant';
+  return `<div class="pop" role="dialog" aria-label="Confirm placement">${q}<span class="scope">${n} of ${o.count}. ${work?`Library updates; a proposed change goes to ${o.team}. Nothing ships automatically.`:'Nothing in the product changes.'}</span><div class="row"><button class="go" id="drop">Drop it here</button><button class="ghost" id="cancelD">Cancel</button></div></div>`;
+}
+function previewCard(){
+  // Shows the library entry as it is, or as it would be with the held/pending placement.
+  const ghost=S.pending?{...S.dec,[S.pending.id]:{...S.draft,place:BUCKET_PLACE[S.pending.bucket]}}:S.dec;
+  const L=derive(ghost),cur=derive(S.dec);const T=THEMES[S.theme];
+  const isNewV=v=>v.isNew&&!cur.variants.some(x=>x.name===v.name);
+  const newWork=L.work.filter(w=>!cur.work.some(x=>x.id===w.id));
+  return `<aside class="preview" style="${themeVars(S.theme)}" aria-live="polite"><div class="row" style="justify-content:space-between"><span class="lbl">Library entry</span>${S.pending?'<span class="proposedtag">preview</span>':''}</div>
+    <h3>Primary action</h3>
+    <div class="pv">${L.variants.map(v=>`<span class="vv ${isNewV(v)?'ghostv':''}">${pa(v.isNew?'Search':'Continue',{h:v.h,scale:.8})}${v.name}</span>`).join('')}</div>
+    <div>${BASE.props.slice(0,3).map(p=>`<div class="prop"><span>${p.label}</span><span class="tok">${p.token}${p.k==='color'?' · '+T.alias:''}</span></div>`).join('')}${L.variants.some(v=>v.isNew)?`<div class="prop"><span>Large height</span><span class="tok new">size.control.lg</span></div>`:''}</div>
+    <div class="chipt">Brands: Waypoint · Kestrel${L.themes.partner==='verified'?' (confirmed in use)':''}</div>
+    ${L.exceptions.length?`<ul>${L.exceptions.map(e=>`<li>Exception: ${e.scope}, ${e.text}</li>`).join('')}</ul>`:''}
+    ${L.work.length?`<div class="w"><b>Agreed, waiting to be built</b><ul>${L.work.map(w=>`<li ${newWork.includes(w)?'style="opacity:.65"':''}>${w.where} · ${w.n} · ${w.team}</li>`).join('')}</ul></div>`:''}
+    ${L.open.length?`<span class="note">${L.open.length} still on the belt</span>`:'<span class="note">Every pile placed</span>'}</aside>`;
+}
+function sortView(){
+  const L=derive(S.dec);const onBelt=OBS_ORDER.filter(id=>!S.dec[id]||S.dec[id].place==='open');
+  return `<div class="top"><button class="ghost" data-back="1">← Back to the collection</button><h1>Actions / Primary action</h1>${brandSwitch()}</div>
+    <div class="sort"><div>
+      <div class="belt" aria-label="Unsorted piles">${onBelt.map(stackHTML).join('')||'<span class="belthint">Belt is clear.</span>'}
+        <div class="stack matched" aria-label="${MATCHING.count} instances already match"><span class="n">${MATCHING.count}</span><span class="sp">${pa('Continue',{scale:.9})}</span><b>Already match</b><small>Filed automatically</small></div>
+        <span class="belthint">${S.held?'Now choose where it belongs below.':'Drag a pile into a bucket, or select it and then a bucket.'}</span></div>
+      <div class="buckets" style="${themeVars(S.theme)}">
+        ${bucket('def','Definition','bring into line',`<div class="slotrow"><span class="slot">${pa('Continue')}Default</span></div><div class="chipt"><span class="tok">size.control.md</span><span class="tok">radius.control</span><span class="tok">color.action.primary</span></div>`,'def')}
+        ${bucket('variants','Variants','deliberate options',`<div class="slotrow">${L.variants.filter(v=>v.isNew).map(v=>`<span class="slot">${pa('Search',{h:48,scale:.7})}${v.name}</span>`).join('')}<span class="slot new">+ new variant</span></div>`)}
+        ${bucket('themes','Brand themes','same component',`<div class="slotrow">${Object.entries(THEMES).map(([k,t])=>`<span class="slot" style="${themeVars(k)}">${pa('Go',{scale:.7})}${t.name}</span>`).join('')}</div>`)}
+        ${bucket('exceptions','Allowed exceptions','kept on purpose','<span class="hint">Differences kept in one place.</span>')}
+        ${bucket('open','Not sure yet','parked','<span class="hint">Leaves it unsorted. Nothing changes.</span>')}
+        <div class="elsewhere">${['Secondary action','Icon button','New component…'].map(n=>`<div class="bucket mini-b ${S.held?'target':''}" data-bucket="other" data-target="${n}" ${S.held?'role="button" tabindex="0"':''}><h3>${n}<small>elsewhere</small></h3>${S.pending&&S.pending.bucket==='other'&&S.pending.target===n?popHTML():''}${OBS_ORDER.filter(id=>S.dec[id]&&S.dec[id].place==='other'&&(S.dec[id].otherTarget||'Secondary action')===n).map(landedHTML).join('')}</div>`).join('')}</div>
+      </div></div>${previewCard()}</div>
+    ${S.lens?lensHTML(S.lens):''}`;
+}
+function lensHTML(id){
+  const o=OBS[id];const oh=parseInt(o.props.height.v),or=parseInt(o.props.radius.v);
+  const callout=o.diff==='radius'?'<span class="callout" style="left:calc(50% - 150px);top:28px">4px corner ↘</span>':o.diff==='height'?'<span class="callout" style="right:calc(50% - 170px);top:30px">+8px</span>':'';
+  return `<div class="lensbox" data-closelens="1"><div class="lenscard" role="dialog" aria-label="${o.where} up close">
+    <span class="lbl">${o.where} · ${o.count} instances · ${o.team}</span><h3>${o.title}</h3>
+    <div class="overlay" style="${themeVars(o.theme)}">${o.diff==='color'?`<span style="display:flex;gap:30px"><span style="${themeVars('consumer')}">${pa('Continue',{scale:2})}</span>${pa(o.label,{scale:2})}</span>`:`<span>${pa('Continue',{scale:2.6,fill:'var(--p)',extra:'opacity:.35'})}</span><span class="o2">${pa('Continue',{h:oh,r:or,scale:2.6})}</span>${callout}`}</div>
+    <div class="plist2">${BASE.props.map(p=>{const v=o.props[p.k];return `<div><span>${p.label}</span><span class="${p.k===o.diff&&o.diff!=='color'?'d':''}">${v.v==='theme'?'theme value':v.v}</span><span class="tok" style="${v.token?'':'color:var(--hard)'}">${v.token?'● '+v.token:'○ hardcoded'}</span></div>`}).join('')}</div>
+    <span style="font-size:13.5px;color:var(--ink-2)">${o.why}</span>
+    ${o.outlier?`<div><span class="lbl">All ${o.count}, one stands out</span><div class="fan" style="margin-top:8px;${themeVars(o.theme)}">${Array.from({length:o.count},(_,i)=>`<span class="${i===11?'out':''}">${pa(o.label,{r:4,scale:.45})}${i===11?'Refund':''}</span>`).join('')}</div></div>`:''}
+    <span class="note">${o.src}</span>
+    <div class="row"><button class="go" data-pick="${id}">Pick it up</button><button class="ghost" data-closelens="1">Close</button></div></div></div>`;
+}
+
+function render(){document.getElementById('app').innerHTML=S.view==='board'?boardView():sortView();wire()}
+function startPending(bucketKey,target){if(!S.held)return;S.pending={id:S.held,bucket:bucketKey,target};const d=S.dec[S.held];S.draft=d?{...d}:{};if(target)S.draft.otherTarget=target;render()}
+function wire(){
+  const $=id=>document.getElementById(id),all=(q,fn)=>document.querySelectorAll(q).forEach(fn);
+  all('[data-theme]',b=>b.onclick=()=>{S.theme=b.dataset.theme;render()});
+  all('[data-open]',b=>b.onclick=()=>{if(b.dataset.open!=='primary'){toast(`${FAMILIES.find(f=>f.id===b.dataset.open).name}: not scripted in this study.`);return}S.view='sort';render();window.scrollTo(0,0)});
+  all('[data-back]',b=>b.onclick=()=>{S.changed=Object.keys(S.dec).length?'primary':null;S.view='board';S.held=null;S.pending=null;render();window.scrollTo(0,0)});
+  all('[data-stack]',s=>{
+    s.onclick=e=>{if(e.target.dataset.lens)return;S.held=S.held===s.dataset.stack?null:s.dataset.stack;S.pending=null;render()};
+    s.onkeydown=e=>{if(e.key==='Enter'&&e.target===s){S.held=s.dataset.stack;S.pending=null;render()}};
+    s.ondragstart=e=>{e.dataTransfer.setData('text/plain',s.dataset.stack);S.held=s.dataset.stack;setTimeout(()=>{all('.bucket',b=>b.classList.add('target'))},0)};
+  });
+  all('[data-bucket]',b=>{
+    b.onclick=e=>{if(e.target.closest('.pop')||e.target.closest('[data-return]'))return;if(S.held)startPending(b.dataset.bucket,b.dataset.target)};
+    b.onkeydown=e=>{if(e.key==='Enter'&&e.target===b&&S.held)startPending(b.dataset.bucket,b.dataset.target)};
+    b.ondragover=e=>{e.preventDefault();b.classList.add('over')};
+    b.ondragleave=()=>b.classList.remove('over');
+    b.ondrop=e=>{e.preventDefault();S.held=e.dataTransfer.getData('text/plain');startPending(b.dataset.bucket,b.dataset.target)};
+  });
+  all('[data-lens]',b=>b.onclick=e=>{e.stopPropagation();S.lens=b.dataset.lens;render()});
+  all('[data-closelens]',b=>b.onclick=e=>{if(e.target===b){S.lens=null;render()}});
+  all('[data-pick]',b=>b.onclick=()=>{S.held=b.dataset.pick;S.lens=null;render()});
+  all('[data-return]',b=>b.onclick=e=>{e.stopPropagation();const id=b.dataset.return,prev=S.dec[id];delete S.dec[id];toast(`${OBS[id].where} is back on the belt.`,()=>{S.dec[id]=prev;render()});render()});
+  if($('excl'))$('excl').onchange=e=>{S.draft.excludeOutlier=e.target.checked;render()};
+  if($('vname'))$('vname').oninput=e=>S.draft.variantName=e.target.value;
+  all('[name=sc]',r=>r.onchange=()=>S.draft.exceptionScope=r.value);
+  if($('cancelD'))$('cancelD').onclick=e=>{e.stopPropagation();S.pending=null;render()};
+  if($('drop'))$('drop').onclick=e=>{e.stopPropagation();const id=S.pending.id,prev=S.dec[id];S.dec[id]={...S.draft,place:BUCKET_PLACE[S.pending.bucket]};S.pending=null;S.held=null;S.draft={};
+    toast(`${OBS[id].where} placed.`,()=>{prev?S.dec[id]=prev:delete S.dec[id];render()});render()};
+}
+document.addEventListener('keydown',e=>{if(e.key==='Escape'){S.lens=null;S.held=null;S.pending=null;render()}});
+let tt,undoFn;function toast(m,fn){document.getElementById('tmsg').textContent=m;undoFn=fn;document.getElementById('tundo').hidden=!fn;const t=document.getElementById('toast');t.classList.add('show');clearTimeout(tt);tt=setTimeout(()=>t.classList.remove('show'),4500)}
+document.getElementById('tundo').onclick=()=>{undoFn&&undoFn();document.getElementById('toast').classList.remove('show')};
+render();
+</script>

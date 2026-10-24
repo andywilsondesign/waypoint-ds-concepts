@@ -1,0 +1,455 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Waypoint Library · Focus</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: the library is a quiet index with a one-line map of every family. A family opens into a full split workspace: approved on the left, observed on the right, compared property by property. */
+:root{
+  --bg:#FAFAF8; --surface:#FFFFFF; --stage:#F1F1EE; --ink:#16181C; --ink-2:#5A5F67; --ink-3:#9298A0; --rule:#E4E4E0;
+  --needs:#D9480F; --needs-bg:#FDEDE4; --wait:#4F46E5; --wait-bg:#ECEBFD; --ok:#237A55; --ok-bg:#E4F2EA; --hard:#D9480F; --prop:#4F46E5; --focus:#2563EB;
+  --f-ui:'Manrope',system-ui,sans-serif; --f-mono:'IBM Plex Mono',ui-monospace,monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#121315; --surface:#1A1B1E; --stage:#232428; --ink:#EDEEF0; --ink-2:#A7ACB3; --ink-3:#6F747B; --rule:#2C2E32;
+  --needs:#FF8A5B; --needs-bg:#3D2216; --wait:#A5A1FF; --wait-bg:#272550; --ok:#6CCB97; --ok-bg:#183327; --hard:#FF8A5B; --prop:#A5A1FF; --focus:#8DB0FF; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#121315; --surface:#1A1B1E; --stage:#232428; --ink:#EDEEF0; --ink-2:#A7ACB3; --ink-3:#6F747B; --rule:#2C2E32;
+  --needs:#FF8A5B; --needs-bg:#3D2216; --wait:#A5A1FF; --wait-bg:#272550; --ok:#6CCB97; --ok-bg:#183327; --hard:#FF8A5B; --prop:#A5A1FF; --focus:#8DB0FF; color-scheme:dark}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:400 15px/1.55 var(--f-ui)}
+[hidden]{display:none!important}
+button,input,select{font:inherit;color:inherit}
+button{cursor:pointer}
+:focus-visible{outline:2px solid var(--focus);outline-offset:2px}
+.lbl{font:500 11px var(--f-mono);letter-spacing:.07em;text-transform:uppercase;color:var(--ink-3)}
+.tok{font:500 12px var(--f-mono);background:var(--stage);border-radius:5px;padding:2px 7px;white-space:nowrap}
+.tok.new{background:var(--ok-bg);color:var(--ok)}
+.mk{width:8px;height:8px;border-radius:50%;display:inline-block;flex:none}
+.mk.needs{background:var(--needs)}.mk.waiting{box-shadow:inset 0 0 0 2px var(--wait)}.mk.settled{background:var(--ink-3);opacity:.45}
+.brand{display:flex;gap:2px;background:var(--stage);border-radius:999px;padding:3px}
+.brand button{border:0;background:none;border-radius:999px;padding:5px 12px;font-size:13px;color:var(--ink-2);display:flex;gap:6px;align-items:center}
+.brand button i{width:9px;height:9px;border-radius:50%}
+.brand button[aria-pressed="true"]{background:var(--surface);color:var(--ink);box-shadow:0 1px 2px rgba(0,0,0,.1)}
+/* map strip: one cell per family, coloured by state */
+.map{display:flex;gap:3px;align-items:center}
+.map button{all:unset;cursor:pointer;width:14px;height:22px;border-radius:3px;background:var(--stage)}
+.map button.needs{background:var(--needs)}.map button.waiting{background:var(--wait-bg);box-shadow:inset 0 0 0 1.5px var(--wait)}
+.map button.cur{outline:2px solid var(--ink);outline-offset:2px}
+.map button:focus-visible{outline:2px solid var(--focus)}
+.map .gap{width:8px}
+/* library index */
+.lib{max-width:1180px;margin:0 auto;padding-block:30px 80px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));display:grid;gap:30px}
+.lib header{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
+.lib h1{margin:0;font:700 16px var(--f-ui)}
+.lib h1 span{color:var(--ink-3);font-weight:500}
+.hero{display:grid;gap:14px}
+.hero p{margin:0;font:600 clamp(24px,3.2vw,34px)/1.2 var(--f-ui);letter-spacing:-.02em;max-width:30ch;text-wrap:balance}
+.hero p em{font-style:normal;color:var(--ink-2);font-weight:500}
+.groupby{display:flex;gap:16px;align-items:center;flex-wrap:wrap;font-size:13.5px;color:var(--ink-2)}
+.groupby button{all:unset;cursor:pointer;color:var(--ink-2);padding-bottom:2px;border-bottom:1.5px solid transparent}
+.groupby button[aria-pressed="true"]{color:var(--ink);border-color:var(--ink)}
+.groupby button:focus-visible{outline:2px solid var(--focus)}
+.groupby .sim{margin-left:auto;font-size:12.5px;color:var(--ink-3)}
+.cols{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:26px 28px}
+.col h2{margin:0 0 8px;font:500 11.5px var(--f-mono);letter-spacing:.07em;text-transform:uppercase;color:var(--ink-3)}
+.entry{all:unset;cursor:pointer;display:grid;grid-template-columns:1fr auto;gap:2px 10px;align-items:center;padding:9px 0;border-bottom:1px solid var(--rule);width:100%}
+.entry:hover b{text-decoration:underline;text-underline-offset:3px}
+.entry:focus-visible{outline:2px solid var(--focus)}
+.entry b{font-weight:600;font-size:15.5px}
+.entry .sp{grid-row:1;grid-column:2;display:flex;align-items:center;justify-content:flex-end;min-width:90px;transform:scale(.8);transform-origin:right center}
+.entry small{grid-column:1/-1;font-size:12.5px;color:var(--ink-2);display:flex;gap:6px;align-items:center}
+.entry.changed{background:linear-gradient(90deg,var(--wait-bg),transparent);animation:flash 2.4s ease}
+@keyframes flash{0%{background:var(--wait-bg)}}
+.entry .chg{grid-column:1/-1;font-size:12.5px;color:var(--wait)}
+/* workspace */
+.ws{min-height:100vh;display:grid;grid-template-rows:auto 1fr;animation:zoomIn .35s cubic-bezier(.3,.1,.2,1)}
+@keyframes zoomIn{from{opacity:0;transform:scale(.97)}}
+.wsbar{display:flex;gap:16px;align-items:center;padding:12px max(16px,env(safe-area-inset-right,0px)) 12px max(16px,env(safe-area-inset-left,0px));border-bottom:1px solid var(--rule);background:var(--surface);flex-wrap:wrap;position:sticky;top:0;z-index:4}
+.wsbar .backl{border:1px solid var(--rule);background:var(--surface);border-radius:8px;padding:6px 12px;font-weight:600;font-size:13.5px}
+.wsbar .crumb{font-size:13.5px;color:var(--ink-2)}
+.wsbar .crumb b{color:var(--ink)}
+.wsbar .sp{margin-left:auto}
+.split{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.25fr)}
+@media (max-width:900px){.split{grid-template-columns:minmax(0,1fr)}}
+.pane{padding:26px max(16px,2.4vw);display:grid;gap:18px;align-content:start}
+.approved{background:var(--surface);border-right:1px solid var(--rule)}
+.pane h2{margin:0;font:700 26px var(--f-ui);letter-spacing:-.02em}
+.pane .purpose{margin:0;color:var(--ink-2)}
+.stagebig{background:var(--stage);border-radius:14px;padding:30px 16px;display:grid;gap:14px;justify-items:center}
+.seg{display:flex;gap:2px;background:var(--surface);border-radius:8px;padding:3px}
+.seg button{border:0;background:none;border-radius:6px;padding:4px 10px;font-size:12.5px;color:var(--ink-2)}
+.seg button[aria-pressed="true"]{background:var(--ink);color:var(--surface)}
+.plist{display:grid}
+.pr{display:grid;grid-template-columns:76px 1fr;gap:10px;padding:9px 0;border-bottom:1px solid var(--rule);font-size:14px;align-items:center}
+.pr span:first-child{color:var(--ink-2)}
+.chain{display:flex;gap:6px;align-items:center;flex-wrap:wrap;font:500 12px var(--f-mono);color:var(--ink-3)}
+.proposed{border:1.5px dashed var(--wait);border-radius:12px;padding:12px 14px;display:grid;gap:8px;background:var(--wait-bg)}
+.proposed .lbl{color:var(--wait)}
+.vrow{display:flex;gap:10px;flex-wrap:wrap}
+.v{border:1px solid var(--rule);border-radius:10px;padding:10px 12px;display:grid;gap:6px;justify-items:center;min-width:110px;background:var(--surface)}
+.v small{font-size:12px;color:var(--ink-2)}
+.v.new{border-color:var(--ok);background:var(--ok-bg)}
+.v.ghost{border-style:dashed;border-color:var(--wait);background:var(--wait-bg)}
+.pending{display:grid;gap:8px}
+.pend{display:grid;grid-template-columns:auto 1fr;gap:10px;font-size:13.5px;background:var(--stage);border-radius:10px;padding:10px 12px}
+.pend small{display:block;color:var(--ink-2)}
+.pend .mk{margin-top:6px}
+/* observed */
+.thumbs{display:flex;gap:8px;flex-wrap:wrap}
+.th{all:unset;cursor:pointer;border:1px solid var(--rule);border-radius:12px;padding:10px 12px;display:grid;gap:6px;min-width:150px;background:var(--surface)}
+.th:focus-visible{outline:2px solid var(--focus)}
+.th[aria-selected="true"]{border-color:var(--ink);box-shadow:0 0 0 1px var(--ink)}
+.th b{font-size:13.5px;font-weight:600}
+.th small{font-size:12px;color:var(--ink-2)}
+.th .placed{color:var(--ok)}
+.th.match{cursor:default;border-style:dashed;color:var(--ink-2)}
+.obshead h3{margin:0;font:700 21px/1.25 var(--f-ui);letter-spacing:-.01em}
+.obshead p{margin:4px 0 0;color:var(--ink-2);font-size:14px}
+.pcmp{display:grid;gap:10px}
+.pc{display:grid;grid-template-columns:90px 1fr 1fr;gap:12px;align-items:center;border-radius:12px;padding:12px;background:var(--surface);border:1px solid var(--rule)}
+.pc.diff{border-color:var(--hard);box-shadow:0 0 0 1px var(--hard)}
+.pc .pn{font-weight:600;font-size:14px}
+.pc .pn small{display:block;font-weight:400;font-size:12px;color:var(--ink-2)}
+.pc .cell{display:grid;gap:6px;justify-items:start}
+.pc .cell small{font:500 11.5px var(--f-mono)}
+.wired{color:var(--ok)}.hard{color:var(--hard)}
+.crop{width:64px;height:64px;border-radius:10px;overflow:hidden;position:relative;background:var(--stage)}
+.crop i{position:absolute;left:14px;top:14px;width:100px;height:100px}
+.hbar{display:flex;align-items:flex-end;gap:6px;height:56px}
+.hbar i{display:block;width:26px;border-radius:4px}
+.hbar span{font:500 11px var(--f-mono);color:var(--ink-3)}
+.sw{width:30px;height:30px;border-radius:8px;display:inline-block;box-shadow:inset 0 0 0 1px rgba(0,0,0,.08)}
+.read{font-size:14px;color:var(--ink-2);background:var(--stage);border-radius:10px;padding:10px 12px}
+.read b{color:var(--ink);font-weight:600}
+.placebar{border-top:1px solid var(--rule);padding:14px 0 calc(14px + env(safe-area-inset-bottom,0px));display:grid;gap:10px}
+.chips{display:flex;gap:6px;flex-wrap:wrap}
+.chip{border:1px solid var(--rule);background:var(--surface);border-radius:999px;padding:7px 13px;font-size:13.5px;font-weight:600}
+.chip:hover{border-color:var(--ink-2)}
+.chip.sug{border-color:var(--ink)}
+.chip.sug::after{content:" ·  suggested";font:500 10.5px var(--f-mono);color:var(--ink-3)}
+.chip[aria-pressed="true"]{background:var(--ink);color:var(--surface);border-color:var(--ink)}
+.sheet{border:1px solid var(--ink);border-radius:12px;padding:14px 16px;display:grid;gap:10px;background:var(--surface);animation:zoomIn .25s ease}
+.sheet .q{font-weight:700}
+.sheet label{display:block;font-size:14px;line-height:1.7}
+.sheet label input{margin:0 8px 0 0;vertical-align:-2px}
+.sheet input[type=text]{border:1px solid var(--rule);border-radius:7px;padding:5px 9px;background:var(--bg);width:150px}
+.sheet .scope{font-size:13.5px;color:var(--ink-2)}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.go{background:var(--ink);color:var(--surface);border:0;border-radius:8px;padding:9px 16px;font-weight:700}
+.ghost{background:none;border:1px solid var(--rule);border-radius:8px;padding:9px 14px}
+details{font-size:13.5px;color:var(--ink-2)}
+details summary{cursor:pointer}
+.screens{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}
+.donebox{border:1px solid var(--ok);background:var(--ok-bg);border-radius:12px;padding:14px 16px;display:grid;gap:8px}
+.toast{position:fixed;left:50%;bottom:calc(18px + env(safe-area-inset-bottom,0px));transform:translate(-50%,20px);opacity:0;background:var(--ink);color:var(--bg);padding:10px 12px 10px 16px;border-radius:10px;display:flex;gap:12px;align-items:center;font-size:14px;transition:.3s;z-index:9;max-width:calc(100% - 32px)}
+.toast.show{opacity:1;transform:translate(-50%,0)}
+.toast:not(.show){visibility:hidden;transition:.3s,visibility 0s .3s}
+.toast button{background:none;border:1px solid currentColor;color:inherit;border-radius:6px;padding:3px 9px;font-size:13px}
+@media (prefers-reduced-motion: reduce){.ws,.sheet,.entry.changed{animation:none}.toast{transition:none}}
+</style>
+
+<div id="app"></div>
+<div class="toast" id="toast" role="status"><span id="tmsg"></span><button id="tundo">Undo</button></div>
+
+<script>
+// ===== Shared scenario for Exploration 03. Every concept renders this same model. =====
+// The "assistant" is simulated: groupings, guesses and counts are scripted.
+
+const THEMES={
+  consumer:{name:'Waypoint',p:'#2563EB',ph:'#1D4FD7',pd:'#A9BEF0',alias:'blue.600',aliasH:'blue.700'},
+  partner:{name:'Kestrel',p:'#0F766E',ph:'#0B5D56',pd:'#9CCFC8',alias:'kestrel.teal.700',aliasH:'kestrel.teal.800'},
+};
+const CATS=['Actions','Inputs','Navigation','Feedback','Containers'];
+// state: settled | needs (findings need judgement) | waiting (agreed, not yet built)
+const FAMILIES=[
+  {id:'primary',name:'Primary action',cat:'Actions',owner:'Design system',uses:212},
+  {id:'secondary',name:'Secondary action',cat:'Actions',uses:401},
+  {id:'iconbtn',name:'Icon button',cat:'Actions',uses:288},
+  {id:'link',name:'Text link',cat:'Actions',uses:330},
+  {id:'field',name:'Text field',cat:'Inputs',uses:612,needs:{n:1,text:'Search field is 48px'}},
+  {id:'select',name:'Select',cat:'Inputs',uses:140},
+  {id:'checkbox',name:'Checkbox',cat:'Inputs',uses:96},
+  {id:'toggle',name:'Toggle',cat:'Inputs',uses:58},
+  {id:'date',name:'Date picker',cat:'Inputs',uses:44,waiting:{text:'Merge 3 date pickers into one',team:'Booking team'}},
+  {id:'header',name:'Header',cat:'Navigation',uses:212},
+  {id:'tabs',name:'Tab bar',cat:'Navigation',uses:180},
+  {id:'crumb',name:'Breadcrumb',cat:'Navigation',uses:38},
+  {id:'alert',name:'Alert',cat:'Feedback',uses:74},
+  {id:'toast',name:'Toast',cat:'Feedback',uses:51},
+  {id:'badge',name:'Badge',cat:'Feedback',uses:166,needs:{n:1,text:'Deal badge reuses error red'}},
+  {id:'card',name:'Trip card',cat:'Containers',uses:388,waiting:{text:'Card padding 16 → 20',team:'Trips team'}},
+  {id:'modal',name:'Modal',cat:'Containers',uses:27},
+];
+const TOTAL_OBS=214; // observed instances across the product that the assistant grouped
+
+const BASE={
+  purpose:'Completes the principal task on a screen.',
+  props:[
+    {k:'height',label:'Height',token:'size.control.md',value:'40px'},
+    {k:'radius',label:'Corners',token:'radius.control',value:'6px',alias:'radius.md'},
+    {k:'color',label:'Fill',token:'color.action.primary',value:'theme'},
+    {k:'label',label:'Label',token:'type.label.md',value:'15 / semibold'},
+  ],
+  states:['Default','Hover','Disabled'],
+};
+
+// Observation groups for Primary action. Matching instances are grouped, not listed.
+const MATCHING={count:154,themed:0};
+const OBS={
+  checkout:{id:'checkout',where:'Checkout',team:'Checkout team',count:12,label:'Pay £412',theme:'consumer',
+    title:'Corners are 4px',short:'4px corners',
+    props:{height:{v:'40px',token:'size.control.md'},radius:{v:'4px',hard:'border-radius: 4px'},color:{v:'theme',token:'color.action.primary'},label:{v:'15 / semibold',token:'type.label.md'}},
+    diff:'radius',guess:'align',
+    why:'Only the corners differ, and they are hardcoded. Everything else uses tokens, so this looks like a missed update.',
+    outlier:{screen:'Refund confirmation',text:'1 of the 12 is on a refund screen with a different layout.'},
+    src:'checkout/PayButton.tsx · line 42',screens:['Payment','Review order','Add card','Refund confirmation']},
+  search:{id:'search',where:'Search',team:'Search team',count:6,label:'Search',theme:'consumer',
+    title:'Height is 48px',short:'48px tall',
+    props:{height:{v:'48px',hard:'height: 48px'},radius:{v:'6px',token:'radius.control'},color:{v:'#2563EB',hard:'background: #2563EB'},label:{v:'15 / semibold',token:'type.label.md'}},
+    diff:'height',guess:'variant',
+    why:'It lines up with the 48px search field beside it, so the height looks deliberate. Its fill looks right but is hardcoded, not the token.',
+    src:'search/SearchBar.tsx · line 88',screens:['Search bar','Filters','Destination search']},
+  partner:{id:'partner',where:'Partner portal',team:'Partner team',count:40,label:'Approve',theme:'partner',
+    title:'Fill is teal',short:'teal fill',
+    props:{height:{v:'40px',token:'size.control.md'},radius:{v:'6px',token:'radius.control'},color:{v:'theme',token:'color.action.primary',mode:'Kestrel'},label:{v:'15 / semibold',token:'type.label.md'}},
+    diff:'color',guess:'theme',
+    why:'The teal comes from the Kestrel value of the same colour token. This is the theme working, not a new component.',
+    src:'partner/ApproveBar.tsx · line 17',screens:['Approvals','Expenses','Trip requests']},
+};
+const OBS_ORDER=['checkout','search','partner'];
+
+// Places a finding can go. "Other" redirects to another family or a new one.
+const PLACES={
+  align:{label:'Bring into line',sub:'Same as the definition. The product should change.'},
+  variant:{label:'New variant',sub:'A deliberate option of this component.'},
+  theme:{label:'Brand theme',sub:'Same component, expressed through a theme.'},
+  exception:{label:'Allowed exception',sub:'A difference kept on purpose, in one place.'},
+  other:{label:'Another component',sub:'It belongs to a different family.'},
+  open:{label:'Leave open',sub:'Not sure yet. Nothing changes.'},
+};
+
+// decision shape: {place, variantName, heightToken, keepHardColor, exceptionScope, otherTarget, excludeOutlier}
+function hexOf(theme){return THEMES[theme].p}
+function derive(dec){
+  const out={variants:[{name:'Default',height:'size.control.md',h:40,isNew:false}],exceptions:[],work:[],themes:{partner:'defined'},
+    open:[],decided:[],related:[]};
+  for(const id of OBS_ORDER){
+    const d=dec[id],o=OBS[id];
+    if(!d||d.place==='open'){out.open.push(id);continue}
+    out.decided.push(id);
+    const n=o.count-(d.excludeOutlier&&o.outlier?1:0);
+    if(d.excludeOutlier&&o.outlier)out.open.push(id+':outlier');
+    if(d.place==='align')out.work.push({id,team:o.team,n,where:o.where,text:`Replace hardcoded ${o.props[o.diff].v} ${o.diff==='radius'?'corners':'height'} with ${BASE.props.find(p=>p.k===o.diff).token}`});
+    if(d.place==='variant'){
+      out.variants.push({name:d.variantName||'Large',height:d.heightToken||'size.control.lg',h:48,isNew:true,from:id});
+      const fixes=['use Primary action / '+(d.variantName||'Large')];
+      if(d.heightToken!=='hard')fixes.push('height → '+(d.heightToken||'size.control.lg'));
+      if(!d.keepHardColor)fixes.push('fill → color.action.primary');
+      out.work.push({id,team:o.team,n,where:o.where,text:fixes.join(', ')});
+    }
+    if(d.place==='exception')out.exceptions.push({id,where:o.where,scope:d.exceptionScope||o.where,text:o.short});
+    if(d.place==='theme')out.themes.partner='verified';
+    if(d.place==='other')out.related.push({id,target:d.otherTarget||'New component'});
+  }
+  return out;
+}
+function familyState(fid,dec){
+  const f=FAMILIES.find(x=>x.id===fid);
+  if(fid!=='primary')return f.needs?'needs':f.waiting?'waiting':'settled';
+  const L=derive(dec);
+  if(L.open.length)return 'needs';
+  if(L.work.length)return 'waiting';
+  return 'settled';
+}
+function counts(dec){
+  const c={settled:0,needs:0,waiting:0};FAMILIES.forEach(f=>c[familyState(f.id,dec)]++);return c;
+}
+function primaryOpenCount(dec){return derive(dec).open.filter(x=>!x.includes(':')).length+derive(dec).open.filter(x=>x.includes(':')).length}
+
+// ----- specimens: real-looking UI at small scale. Theme colours come from CSS vars --p/--ph/--pd. -----
+function themeVars(t){const T=THEMES[t];return `--p:${T.p};--ph:${T.ph};--pd:${T.pd};`}
+function pa(label='Continue',{h=40,r=6,fill='var(--p)',scale=1,state='Default',extra=''}={}){
+  const bg=state==='Hover'?'var(--ph)':state==='Disabled'?'var(--pd)':fill;
+  return `<span class="spx-pa" style="height:${h*scale}px;border-radius:${r*scale}px;padding:0 ${16*scale}px;font-size:${14*scale}px;background:${bg};${extra}">${label}</span>`;
+}
+function specimen(fid){
+  const s={
+    primary:pa('Continue',{scale:.8}),
+    secondary:`<span class="spx-pa" style="height:32px;border-radius:5px;padding:0 13px;font-size:11px;background:#fff;color:var(--p);box-shadow:inset 0 0 0 1.5px var(--p)">Edit trip</span>`,
+    iconbtn:`<span class="spx-ib">♡</span><span class="spx-ib">⤴</span>`,
+    link:`<span style="color:var(--p);text-decoration:underline;font:500 12px system-ui">View details</span>`,
+    field:`<span class="spx-field">Where to?</span>`,
+    select:`<span class="spx-field">2 adults <i style="margin-left:auto;font-style:normal">▾</i></span>`,
+    checkbox:`<span class="spx-cb on">✓</span><span style="font:12px system-ui;color:#3B4048">Flexible dates</span>`,
+    toggle:`<span class="spx-tg"><i></i></span>`,
+    date:`<span class="spx-cal">${Array.from({length:14},(_,i)=>`<i class="${i===9?'on':''}">${i+8}</i>`).join('')}</span>`,
+    header:`<span class="spx-hd"><b>waypoint</b><i></i><i></i></span>`,
+    tabs:`<span class="spx-tabs"><i class="on">Trips</i><i>Saved</i><i>Profile</i></span>`,
+    crumb:`<span style="font:11px system-ui;color:#5B6169">Trips › Lisbon › <b style="color:#1B1D21">Hotel</b></span>`,
+    alert:`<span class="spx-alert">Passport expires before your trip.</span>`,
+    toast:`<span class="spx-toast">Saved to Lisbon</span>`,
+    badge:`<span class="spx-badge" style="background:#DC2626">DEAL</span><span class="spx-badge" style="background:#E8EAEE;color:#3B4048">2 nights</span>`,
+    card:`<span class="spx-card"><i></i><b>Lisbon</b><small>12–16 May</small></span>`,
+    modal:`<span class="spx-modal"><b>Cancel trip?</b><i></i><i style="width:40%"></i></span>`,
+  };
+  return s[fid]||'';
+}
+const SPX_CSS=`
+.spx-pa{display:inline-flex;align-items:center;justify-content:center;color:#fff;font-family:system-ui,-apple-system,'Segoe UI',sans-serif;font-weight:600;white-space:nowrap;line-height:1;box-sizing:border-box;transition:background .4s,border-radius .4s,height .4s}
+.spx-ib{display:inline-grid;place-items:center;width:30px;height:30px;border-radius:50%;background:#EEF1F5;color:#3B4048;font:14px system-ui;margin:0 2px}
+.spx-field{display:inline-flex;align-items:center;width:130px;height:30px;border:1px solid #C9CFD6;border-radius:6px;background:#fff;color:#7B8188;font:11.5px system-ui;padding:0 9px;box-sizing:border-box}
+.spx-cb{display:inline-grid;place-items:center;width:16px;height:16px;border-radius:4px;border:1.5px solid #9AA1AA;margin-right:6px;font:700 10px system-ui;color:#fff}
+.spx-cb.on{background:var(--p);border-color:var(--p)}
+.spx-tg{display:inline-block;width:34px;height:20px;border-radius:10px;background:var(--p);position:relative}.spx-tg i{position:absolute;right:2px;top:2px;width:16px;height:16px;border-radius:50%;background:#fff}
+.spx-cal{display:grid;grid-template-columns:repeat(7,14px);gap:2px}.spx-cal i{font:9px/14px system-ui;text-align:center;font-style:normal;color:#5B6169;border-radius:3px}.spx-cal i.on{background:var(--p);color:#fff}
+.spx-hd{display:flex;align-items:center;gap:8px;width:150px;height:28px;background:#fff;border-bottom:1px solid #E1E4E8;padding:0 8px;box-sizing:border-box}.spx-hd b{font:700 11px system-ui;color:var(--p);margin-right:auto}.spx-hd i{width:16px;height:16px;border-radius:50%;background:#E5E8EC}
+.spx-tabs{display:flex;gap:2px;background:#fff;border-top:1px solid #E1E4E8;padding:4px}.spx-tabs i{font:500 10px system-ui;font-style:normal;color:#7B8188;padding:4px 7px;border-radius:5px}.spx-tabs i.on{color:var(--p);background:#EEF2FB}
+.spx-alert{display:block;width:150px;font:11px/1.35 system-ui;color:#7A4A00;background:#FDF3DC;border-left:3px solid #D99A1C;padding:6px 8px;border-radius:4px;box-sizing:border-box}
+.spx-toast{display:inline-block;font:500 11px system-ui;color:#fff;background:#1F2328;padding:7px 11px;border-radius:7px}
+.spx-badge{display:inline-block;font:700 9.5px system-ui;color:#fff;padding:3px 6px;border-radius:3px;margin:0 2px;letter-spacing:.03em}
+.spx-card{display:grid;width:96px;background:#fff;border-radius:8px;box-shadow:0 1px 3px rgba(0,0,0,.12);overflow:hidden}.spx-card i{height:34px;background:linear-gradient(135deg,#9CC3D5,#D7E5D0)}.spx-card b{font:600 10.5px system-ui;color:#1B1D21;padding:5px 7px 0}.spx-card small{font:9.5px system-ui;color:#6B7076;padding:0 7px 6px}
+.spx-modal{display:grid;gap:5px;width:120px;background:#fff;border-radius:8px;padding:9px;box-shadow:0 4px 14px rgba(0,0,0,.15)}.spx-modal b{font:600 11px system-ui;color:#1B1D21}.spx-modal i{height:5px;border-radius:3px;background:#E3E6EA}
+`;
+// A tiny product screen showing where an instance sits. Highlight ring marks the instance.
+function screen(obsId,{h=1}={}){
+  const o=OBS[obsId];const r=o.props.radius.v==='4px'?4:6;const ht=o.props.height.v==='48px'?48:40;
+  const fill=o.theme==='partner'?THEMES.partner.p:THEMES.consumer.p;
+  const top=obsId==='partner'?'<i class="scr-bar" style="background:#334155"></i>':'<i class="scr-bar"></i>';
+  const body=obsId==='search'?'<span style="display:flex;gap:4px;align-items:center"><i class="scr-in" style="height:24px;flex:1"></i>'+`<span class="spx-pa scr-hl" style="height:24px;border-radius:3px;padding:0 7px;font-size:8px;background:${fill}">${o.label}</span></span><i class="scr-img"></i>`
+    :`<i class="scr-img"></i><i class="scr-ln" style="width:70%"></i><i class="scr-ln" style="width:45%"></i><span class="spx-pa scr-hl" style="height:${ht*.5}px;border-radius:${r*.5}px;padding:0 8px;font-size:8px;background:${fill};margin-top:4px">${o.label}</span>`;
+  return `<span class="scr">${top}${body}</span>`;
+}
+const SCR_CSS=`.scr{display:grid;gap:4px;width:120px;background:#fff;border:1px solid #DDE1E5;border-radius:8px;padding:7px;box-sizing:border-box;align-content:start}
+.scr-bar{display:block;height:6px;border-radius:3px;background:#E4E7EB}.scr-img{display:block;height:30px;border-radius:4px;background:linear-gradient(135deg,#A9CBD9,#DCE8D4)}
+.scr-ln{display:block;height:4px;border-radius:2px;background:#E4E7EB}.scr-in{display:block;border:1px solid #CFD5DB;border-radius:3px;background:#fff}
+.scr-hl{outline:2px solid #F2B33D;outline-offset:2px}`;
+document.head.insertAdjacentHTML('beforeend',`<style>${SPX_CSS}${SCR_CSS}</style>`);
+
+const S={view:'lib',theme:'consumer',groupBy:'cat',fam:null,group:'checkout',stateView:'Default',place:null,draft:{},dec:{},changed:null};
+
+function mapStrip(cur){
+  let out='',last=null;
+  for(const f of FAMILIES){if(last&&f.cat!==last)out+='<span class="gap"></span>';last=f.cat;
+    out+=`<button class="${familyState(f.id,S.dec)} ${cur===f.id?'cur':''}" data-open="${f.id}" title="${f.name}" aria-label="${f.name}, ${familyState(f.id,S.dec)}"></button>`}
+  return `<div class="map" aria-label="All families">${out}</div>`;
+}
+function brandSwitch(){return `<div class="brand" role="group" aria-label="Brand">${Object.entries(THEMES).map(([k,t])=>`<button data-theme="${k}" aria-pressed="${S.theme===k}"><i style="background:${t.p}"></i>${t.name}</button>`).join('')}</div>`}
+
+// ---------- library ----------
+function entryNote(f){
+  const st=familyState(f.id,S.dec);const L=derive(S.dec);
+  if(f.id==='primary'){if(st==='needs')return `<i class="mk needs"></i>${L.open.length} group${L.open.length>1?'s':''} to look at · 58 instances`;
+    if(st==='waiting')return `<i class="mk waiting"></i>Agreed · waiting on ${[...new Set(L.work.map(w=>w.team))].join(' and ')}`;return `<i class="mk settled"></i>Settled`}
+  if(f.needs)return `<i class="mk needs"></i>${f.needs.text}`;
+  if(f.waiting)return `<i class="mk waiting"></i>${f.waiting.text} · ${f.waiting.team}`;
+  return `<i class="mk settled"></i>${f.uses} uses`;
+}
+function entry(f){
+  const L=derive(S.dec);
+  const chg=f.id==='primary'&&L.decided.length?`<span class="chg">${L.decided.map(id=>`${OBS[id].where} → ${PLACES[S.dec[id].place].label.toLowerCase()}`).join(' · ')} · <u data-revisit="1">revisit</u></span>`:'';
+  return `<button class="entry ${S.changed===f.id?'changed':''}" data-open="${f.id}"><b>${f.name}</b><span class="sp">${specimen(f.id)}</span><small>${entryNote(f)}</small>${chg}</button>`;
+}
+function libraryView(){
+  const c=counts(S.dec);
+  let groups;
+  if(S.groupBy==='cat')groups=CATS.map(cat=>[cat,FAMILIES.filter(f=>f.cat===cat)]);
+  else if(S.groupBy==='state')groups=[['Needs you','needs'],['Agreed, not built','waiting'],['Settled','settled']].map(([t,k])=>[t,FAMILIES.filter(f=>familyState(f.id,S.dec)===k)]).filter(g=>g[1].length);
+  else {const team=f=>f.id==='primary'?(familyState('primary',S.dec)==='settled'?'Design system':'Checkout, Search, Partner teams'):f.waiting?f.waiting.team:f.needs?(f.id==='field'?'Search team':'Deals team'):'Design system';
+    const t={};FAMILIES.forEach(f=>{(t[team(f)]=t[team(f)]||[]).push(f)});groups=Object.entries(t)}
+  return `<div class="lib" style="${themeVars(S.theme)}"><header><h1>Waypoint design system <span>· library</span></h1>${brandSwitch()}</header>
+    <div class="hero"><p>${c.needs?`${c.needs} famil${c.needs>1?'ies need':'y needs'} your eye.`:'Nothing needs your eye.'} <em>${c.settled} are settled${c.waiting?`, ${c.waiting} have agreed changes on the way`:''}.</em></p>${mapStrip(null)}</div>
+    <div class="groupby"><span>Group by</span>${[['cat','Category'],['state','What needs doing'],['team','Owner']].map(([k,l])=>`<button data-gb="${k}" aria-pressed="${S.groupBy===k}">${l}</button>`).join('')}<span class="sim">${TOTAL_OBS} instances observed this week · grouping simulated</span></div>
+    <div class="cols">${groups.map(([t,fs])=>`<div class="col"><h2>${t}</h2>${fs.map(entry).join('')}</div>`).join('')}</div></div>`;
+}
+
+// ---------- workspace ----------
+function approvedPane(){
+  const L=derive(S.dec),T=THEMES[S.theme],draftVariant=S.place==='variant';
+  const chain=p=>p.k==='color'?`<span class="tok">${p.token}</span>→<span class="tok">${T.alias}</span><span class="sw" style="width:14px;height:14px;border-radius:4px;background:${T.p}"></span>`:`<span class="tok">${p.token}</span>${p.alias?'→<span class="tok">'+p.alias+'</span>':''}→ ${p.value}`;
+  return `<section class="pane approved" aria-label="Approved"><div><span class="lbl">Approved</span><h2>Primary action</h2><p class="purpose">${BASE.purpose}</p></div>
+    <div class="stagebig">${pa('Continue',{state:S.stateView,scale:1.4})}<div class="seg" role="group" aria-label="State">${BASE.states.map(s=>`<button data-sv="${s}" aria-pressed="${S.stateView===s}">${s}</button>`).join('')}</div></div>
+    <div class="plist">${BASE.props.map(p=>`<div class="pr"><span>${p.label}</span><span class="chain">${chain(p)}</span></div>`).join('')}</div>
+    <div><span class="lbl">Variants</span><div class="vrow" style="margin-top:8px">${L.variants.map(v=>`<div class="v ${v.isNew?'new':''}">${pa(v.isNew?'Search':'Continue',{h:v.h,scale:.85})}<small>${v.name} · ${v.height==='hard'?'48px fixed':v.height}</small></div>`).join('')}
+      ${draftVariant?`<div class="v ghost">${pa('Search',{h:48,scale:.85})}<small>${S.draft.variantName||'Large'} · proposed</small></div>`:''}</div></div>
+    ${L.exceptions.length?`<div><span class="lbl">Allowed exceptions</span>${L.exceptions.map(e=>`<div class="pend" style="margin-top:8px"><i class="mk settled"></i><div>${e.scope}: ${e.text}</div></div>`).join('')}</div>`:''}
+    ${L.work.length?`<div class="pending"><span class="lbl">Agreed, not built yet</span>${L.work.map(w=>`<div class="pend"><i class="mk waiting"></i><div>${w.where} · ${w.n} instances · ${w.team}<small>${w.text}</small></div></div>`).join('')}</div>`:''}
+  </section>`;
+}
+function cellFor(o,k,side){
+  const T=THEMES[o.theme];
+  const ownTheme=side==='a'?THEMES[S.theme]:T;
+  if(k==='radius'){const r=side==='a'?6:parseInt(o.props.radius.v);return `<span class="crop"><i style="border-top-left-radius:${r*7}px;background:${ownTheme.p}"></i></span>`}
+  if(k==='height'){const h=side==='a'?40:parseInt(o.props.height.v);return `<span class="hbar"><i style="height:${h}px;background:${ownTheme.p}"></i><span>${h}</span></span>`}
+  if(k==='color'){const p=o.props.color;return `<span class="sw" style="background:${side==='a'?THEMES[S.theme].p:(p.v==='theme'?T.p:p.v)}"></span>`}
+  return `<span style="font:600 15px system-ui">Aa</span>`;
+}
+function observedPane(){
+  const o=OBS[S.group],d=S.dec[S.group];const place=S.place;
+  const rows=BASE.props.map(p=>{const v=o.props[p.k];const differs=p.k===o.diff;
+    const aw=`<small class="wired">● ${p.token}</small>`;
+    const ow=v.token?`<small class="wired">● ${v.token}${v.mode?' · '+v.mode:''}</small>`:`<small class="hard">○ hardcoded ${v.hard.split(': ')[1]}</small>`;
+    return `<div class="pc ${differs&&o.diff!=='color'?'diff':''}"><span class="pn">${p.label}<small>${differs?(o.diff==='color'?'differs by brand':'differs'):v.token?'same':'looks the same'}</small></span>
+      <span class="cell">${cellFor(o,p.k,'a')}${aw}</span><span class="cell" style="${themeVars(o.theme)}">${cellFor(o,p.k,'o')}${ow}</span></div>`}).join('');
+  const allDone=OBS_ORDER.every(id=>S.dec[id]&&S.dec[id].place!=='open');
+  return `<section class="pane" aria-label="Observed"><div><span class="lbl">Observed in the product · 212 instances, grouped</span></div>
+    <div class="thumbs" role="tablist">${OBS_ORDER.map(id=>{const x=OBS[id],dd=S.dec[id];return `<button class="th" role="tab" data-grp="${id}" aria-selected="${S.group===id}" style="${themeVars(x.theme)}">${pa(x.label,{h:parseInt(x.props.height.v),r:parseInt(x.props.radius.v),scale:.6})}<b>${x.where}</b><small>${dd&&dd.place!=='open'?`<span class="placed">✓ ${PLACES[dd.place].label}</span>`:`${x.count} · ${x.short}`}</small></button>`}).join('')}
+      <div class="th match"><b>${MATCHING.count} match</b><small>Wired to tokens</small></div></div>
+    ${allDone?`<div class="donebox"><b>Every group in Primary action has a place.</b><span style="font-size:14px;color:var(--ink-2)">${derive(S.dec).work.length} agreed change${derive(S.dec).work.length===1?'':'s'} will go to the owning teams. Nothing in the product has changed yet.</span><div class="row"><button class="go" data-back="1">Back to the library</button></div></div>`:''}
+    <div class="obshead"><h3>${o.where}: ${o.title.toLowerCase()}</h3><p>${o.count} instances · ${o.team}${d&&d.place!=='open'?` · placed in <b>${PLACES[d.place].label}</b>`:''}</p></div>
+    <div class="pcmp"><div class="pc" style="background:none;border:0;padding:0 12px"><span></span><span class="lbl">Approved</span><span class="lbl">${o.where}</span></div>${rows}</div>
+    <div class="read">Assistant’s read: <b>${o.why}</b></div>
+    <details><summary>Source, screens and owner</summary><div class="screens" style="${themeVars(o.theme)}">${o.screens.map(s=>`<span style="display:grid;gap:4px;font-size:11.5px">${screen(o.id)}${s}</span>`).join('')}</div><p>${o.src} · ${o.team}</p></details>
+    <div class="placebar"><span class="lbl">Place it in the system</span><div class="chips">${Object.entries(PLACES).map(([k,p])=>`<button class="chip ${k===o.guess?'sug':''}" data-place="${k}" aria-pressed="${place===k}" title="${p.sub}">${p.label}</button>`).join('')}</div>${place?sheet(o,place):''}</div>
+  </section>`;
+}
+function sheet(o,place){
+  const D=S.draft;let q='';
+  if(place==='align')q=`<span class="q">${o.where} should follow <span class="tok">radius.control</span> (6px).</span>${o.outlier?`<label><input type="checkbox" id="excl" ${D.excludeOutlier?'checked':''}> Keep “${o.outlier.screen}” open. ${o.outlier.text}</label>`:''}`;
+  if(place==='variant')q=`<span class="q">Define the variant on its own terms.</span><label>Name <input type="text" id="vname" value="${D.variantName||'Large'}"></label>
+    <label><input type="radio" name="ht" value="size.control.lg" ${D.heightToken!=='hard'?'checked':''}> Height token <span class="tok new">size.control.lg = 48px</span> (new)</label>
+    <label><input type="radio" name="ht" value="hard" ${D.heightToken==='hard'?'checked':''}> Fixed 48px</label>
+    <label><input type="checkbox" checked disabled> Fill uses <span class="tok">color.action.primary</span>. The observed hardcoded <span class="tok">#2563EB</span> is not carried over.</label>`;
+  if(place==='exception')q=`<span class="q">Where may it differ?</span><label><input type="radio" name="sc" value="${o.where}" checked> All of ${o.where}</label><label><input type="radio" name="sc" value="${o.screens[0]}"> Only ${o.screens[0]}</label>`;
+  if(place==='other')q=`<span class="q">It belongs to</span><label><select id="other"><option>Secondary action</option><option>Icon button</option><option>New component…</option></select></label>`;
+  if(place==='theme')q=`<span class="q">Same component. Its colour comes from the Kestrel value of <span class="tok">color.action.primary</span>.</span>`;
+  if(place==='open')q=`<span class="q">It stays here for later.</span>`;
+  const n=o.count-(place==='align'&&D.excludeOutlier&&o.outlier?1:0);const work=place==='align'||place==='variant';
+  return `<div class="sheet">${q}<span class="scope">${n} of ${o.count} instances. ${work?`The library changes now. ${o.team} gets a proposed change to build.`:'Nothing in the product changes.'}</span><div class="row"><button class="go" id="keep">Place it</button><button class="ghost" id="cancelP">Cancel</button></div></div>`;
+}
+function workspace(){
+  const f=FAMILIES.find(x=>x.id===S.fam);
+  if(S.fam!=='primary')return `<div class="ws" style="${themeVars(S.theme)}"><div class="wsbar"><button class="backl" data-back="1">← Library</button>${mapStrip(S.fam)}<span class="crumb">${f.cat} / <b>${f.name}</b></span><span class="sp">${brandSwitch()}</span></div>
+    <div class="split"><section class="pane approved"><span class="lbl">Approved</span><h2>${f.name}</h2><div class="stagebig">${specimen(f.id)}</div></section><section class="pane"><p class="purpose">${f.needs?`1 group to look at: ${f.needs.text}. Not scripted in this study.`:f.waiting?`${f.waiting.text}. Waiting on ${f.waiting.team}.`:'Everything observed matches. Nothing to decide.'}</p></section></div></div>`;
+  return `<div class="ws" style="${themeVars(S.theme)}"><div class="wsbar"><button class="backl" data-back="1">← Library</button>${mapStrip('primary')}<span class="crumb">Actions / <b>Primary action</b></span><span class="sp">${brandSwitch()}</span></div>
+    <div class="split">${approvedPane()}${observedPane()}</div></div>`;
+}
+
+function render(){document.getElementById('app').innerHTML=S.view==='lib'?libraryView():workspace();wire()}
+function wire(){
+  const $=id=>document.getElementById(id),all=(q,fn)=>document.querySelectorAll(q).forEach(fn);
+  all('[data-theme]',b=>b.onclick=()=>{S.theme=b.dataset.theme;render()});
+  all('[data-gb]',b=>b.onclick=()=>{S.groupBy=b.dataset.gb;render()});
+  all('[data-open]',b=>b.onclick=e=>{const rev=e.target.dataset&&e.target.dataset.revisit;S.fam=b.dataset.open;S.view='ws';S.place=null;S.draft={};
+    if(S.fam==='primary'){const first=OBS_ORDER.find(id=>!S.dec[id]||S.dec[id].place==='open');S.group=rev?OBS_ORDER.find(id=>S.dec[id])||'checkout':first||'checkout'}render();window.scrollTo(0,0)});
+  all('[data-back]',b=>b.onclick=()=>{S.changed=S.fam==='primary'&&Object.keys(S.dec).length?'primary':null;S.view='lib';render();window.scrollTo(0,0)});
+  all('[data-sv]',b=>b.onclick=()=>{S.stateView=b.dataset.sv;render()});
+  all('[data-grp]',b=>b.onclick=()=>{S.group=b.dataset.grp;S.place=null;S.draft=S.dec[S.group]?{...S.dec[S.group]}:{};render()});
+  all('[data-place]',b=>b.onclick=()=>{S.place=b.dataset.place;render();document.querySelector('.sheet')?.scrollIntoView({behavior:'smooth',block:'nearest'})});
+  if($('excl'))$('excl').onchange=e=>{S.draft.excludeOutlier=e.target.checked;render()};
+  if($('vname'))$('vname').oninput=e=>S.draft.variantName=e.target.value;
+  all('[name=ht]',r=>r.onchange=()=>{S.draft.heightToken=r.value;render()});
+  all('[name=sc]',r=>r.onchange=()=>S.draft.exceptionScope=r.value);
+  if($('other'))$('other').onchange=e=>S.draft.otherTarget=e.target.value;
+  if($('cancelP'))$('cancelP').onclick=()=>{S.place=null;render()};
+  if($('keep'))$('keep').onclick=()=>{const id=S.group,prev=S.dec[id];S.dec[id]={...S.draft,place:S.place};S.place=null;S.draft={};
+    const next=OBS_ORDER.find(x=>!S.dec[x]||S.dec[x].place==='open');if(next)S.group=next;
+    toast(`${OBS[id].where} placed in ${PLACES[S.dec[id].place].label}.`,()=>{prev?S.dec[id]=prev:delete S.dec[id];S.group=id;render()});render()};
+}
+let tt,undoFn;function toast(m,fn){document.getElementById('tmsg').textContent=m;undoFn=fn;const t=document.getElementById('toast');t.classList.add('show');clearTimeout(tt);tt=setTimeout(()=>t.classList.remove('show'),4500)}
+document.getElementById('tundo').onclick=()=>{undoFn&&undoFn();document.getElementById('toast').classList.remove('show')};
+render();
+</script>
